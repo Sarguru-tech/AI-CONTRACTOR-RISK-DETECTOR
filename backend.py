@@ -90,11 +90,11 @@ def call_gemini(prompt: str, max_tokens: int = 800, temperature: float = 0.7,
             "parts": [{"text": system_prompt}]
         }
         
-    candidate_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-latest"]
+    candidate_models = ["gemini-3.7-flash", "gemma-4-26b-a4b-it", "gemini-3.6-flash", "gemini-flash-latest"]
     for model_name in candidate_models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         try:
-            r = requests.post(url, json=payload, timeout=20)
+            r = requests.post(url, json=payload, timeout=10)
             if r.status_code == 200:
                 candidates = r.json().get("candidates", [])
                 if candidates:

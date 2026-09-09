@@ -1882,7 +1882,7 @@
          JAVASCRIPT ENGINE & APPLICATION LOGIC
          ========================================================= -->
     <script>
-        const API_BASE = window.location.origin.includes(':3000') ? 'http://localhost:8000' : window.location.origin;
+        const API_BASE = (window.location.origin && window.location.origin.startsWith('http') && !window.location.origin.includes(':3000') && !window.location.origin.includes(':5500') && !window.location.origin.includes(':5173')) ? window.location.origin : 'http://127.0.0.1:8000';
         
         let riskDonutChart = null;
         let activeAnalysis = null;

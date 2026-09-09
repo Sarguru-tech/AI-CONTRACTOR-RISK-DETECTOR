@@ -1,0 +1,2931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDIE Enterprise – AI Contract Risk & Decision Intelligence Engine</title>
+    <meta name="description" content="AI-Powered Contract Risk, Compliance & Profitability Intelligence Platform with explainable AI, quantified risk scoring, and DPDP/MSME compliance checking.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 Pro CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* =========================================================
+           CORE DESIGN TOKENS & SYSTEM
+           ========================================================= */
+        :root {
+            --bg-canvas: #060913;
+            --bg-surface-1: #0d1222;
+            --bg-surface-2: #141b34;
+            --bg-surface-3: #1d264a;
+            --bg-card: rgba(16, 23, 45, 0.75);
+            --bg-card-hover: rgba(24, 34, 66, 0.85);
+            --border-subtle: rgba(255, 255, 255, 0.07);
+            --border-active: rgba(99, 102, 241, 0.4);
+            --border-glow: rgba(56, 189, 248, 0.3);
+
+            --accent-primary: #6366f1;
+            --accent-primary-hover: #4f46e5;
+            --accent-cyan: #06b6d4;
+            --accent-sky: #38bdf8;
+            --accent-emerald: #10b981;
+            --accent-violet: #8b5cf6;
+            --accent-fuchsia: #d946ef;
+
+            /* Risk Semantics */
+            --risk-critical: #f43f5e;
+            --risk-critical-bg: rgba(244, 63, 94, 0.15);
+            --risk-high: #f97316;
+            --risk-high-bg: rgba(249, 115, 22, 0.15);
+            --risk-medium: #eab308;
+            --risk-medium-bg: rgba(234, 179, 8, 0.15);
+            --risk-low: #10b981;
+            --risk-low-bg: rgba(16, 185, 129, 0.15);
+            --risk-minimal: #06b6d4;
+            --risk-minimal-bg: rgba(6, 182, 212, 0.15);
+
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --text-dim: #475569;
+
+            --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-display: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+            --radius-full: 9999px;
+
+            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 1px 1px var(--border-subtle);
+            --shadow-glow-indigo: 0 0 35px -5px rgba(99, 102, 241, 0.35);
+            --shadow-glow-cyan: 0 0 35px -5px rgba(6, 182, 212, 0.35);
+        }
+
+        /* Global Reset */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-canvas);
+            background-image: 
+                radial-gradient(at 15% 15%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+                radial-gradient(at 85% 20%, rgba(6, 182, 212, 0.1) 0px, transparent 45%),
+                radial-gradient(at 50% 80%, rgba(139, 92, 246, 0.08) 0px, transparent 60%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-canvas); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-surface-3); border-radius: var(--radius-full); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-primary); }
+
+        /* Typography Utilities */
+        h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; color: #ffffff; }
+        .mono { font-family: var(--font-mono); }
+
+        /* =========================================================
+           TOP NAVIGATION BAR
+           ========================================================= */
+        .header-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(9, 13, 26, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0.85rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            max-width: 1560px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .brand-cluster {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-decoration: none;
+        }
+
+        .brand-icon-wrapper {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #4f46e5, #06b6d4);
+            border-radius: var(--radius-md);
+            display: grid;
+            place-items: center;
+            font-size: 1.35rem;
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-icon-wrapper::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.4) 50%, transparent 60%);
+            animation: shine 4s infinite linear;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .brand-text-block h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 30%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .brand-tagline {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--accent-sky);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .header-pills-cluster {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.9rem;
+            border-radius: var(--radius-full);
+            font-size: 0.78rem;
+            font-weight: 600;
+            background: var(--bg-surface-2);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            box-shadow: 0 0 10px var(--accent-emerald);
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+        }
+
+        .engine-pill {
+            background: rgba(99, 102, 241, 0.12);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+        }
+
+        /* =========================================================
+           MAIN WRAPPER & TAB NAVIGATION
+           ========================================================= */
+        .app-shell {
+            max-width: 1560px;
+            margin: 0 auto;
+            padding: 1.75rem 1.5rem 4rem;
+        }
+
+        .tab-nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(13, 18, 34, 0.75);
+            backdrop-filter: blur(12px);
+            padding: 0.4rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 2rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .tab-nav-bar::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.65rem 1.35rem;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .tab-btn i {
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.2));
+            color: #ffffff;
+            border-color: rgba(99, 102, 241, 0.45);
+            box-shadow: 0 4px 20px -3px rgba(99, 102, 241, 0.35);
+        }
+
+        .tab-btn.active i {
+            color: var(--accent-sky);
+            transform: scale(1.1);
+        }
+
+        .tab-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-full);
+            background: var(--bg-surface-3);
+            color: var(--text-secondary);
+        }
+
+        .tab-btn.active .tab-badge {
+            background: var(--accent-primary);
+            color: #ffffff;
+        }
+
+        /* Tab Content Panels */
+        .tab-pane {
+            display: none;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .tab-pane.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* =========================================================
+           CARD & GRID SYSTEM
+           ========================================================= */
+        .grid-12 {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-card);
+            transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+            position: relative;
+        }
+
+        .card:hover {
+            border-color: rgba(99, 102, 241, 0.25);
+        }
+
+        .card-header-styled {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .card-header-styled h3 {
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            color: var(--text-primary);
+        }
+
+        .card-header-styled h3 i {
+            color: var(--accent-sky);
+        }
+
+        /* =========================================================
+           DASHBOARD COMPONENTS
+           ========================================================= */
+        .hero-banner {
+            background: linear-gradient(135deg, rgba(20, 27, 52, 0.9), rgba(13, 18, 34, 0.9));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: var(--radius-xl);
+            padding: 2.25rem 2.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+        }
+
+        .hero-banner::before {
+            content: '';
+            position: absolute;
+            top: -40%;
+            right: -10%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero-banner-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+        }
+
+        .hero-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.85rem;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: var(--radius-full);
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #c7d2fe;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .hero-banner h2 {
+            font-size: 2.2rem;
+            line-height: 1.25;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-banner p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* Bento KPI Grid */
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 140px;
+            transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.5);
+            border-color: rgba(99, 102, 241, 0.35);
+        }
+
+        .kpi-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .kpi-icon-pill {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-md);
+            display: grid;
+            place-items: center;
+            font-size: 1.1rem;
+            background: var(--bg-surface-2);
+            color: var(--accent-sky);
+        }
+
+        .kpi-value {
+            font-family: var(--font-display);
+            font-size: 2.6rem;
+            font-weight: 800;
+            line-height: 1;
+            margin: 0.5rem 0;
+            color: #ffffff;
+        }
+
+        .kpi-footer {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Preset Demo Contract Cards */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .preset-card {
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.1rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .preset-card:hover {
+            background: var(--bg-surface-2);
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -5px rgba(99, 102, 241, 0.2);
+        }
+
+        .preset-card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #ffffff;
+        }
+
+        .preset-card-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+        }
+
+        .preset-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* =========================================================
+           ANALYZER TAB STYLES
+           ========================================================= */
+        .dropzone-box {
+            border: 2px dashed rgba(99, 102, 241, 0.35);
+            background: rgba(13, 18, 34, 0.6);
+            border-radius: var(--radius-lg);
+            padding: 2.25rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .dropzone-box:hover, .dropzone-box.dragover {
+            border-color: var(--accent-sky);
+            background: rgba(20, 27, 52, 0.8);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.15);
+        }
+
+        .dropzone-icon {
+            font-size: 2.75rem;
+            color: var(--accent-sky);
+            margin-bottom: 0.75rem;
+            transition: transform 0.25s;
+        }
+
+        .dropzone-box:hover .dropzone-icon {
+            transform: translateY(-4px) scale(1.05);
+        }
+
+        .dropzone-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.35rem;
+        }
+
+        .dropzone-subtitle {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .file-status-pill {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-surface-2);
+            border: 1px solid var(--accent-primary);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            margin-top: 1rem;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control-custom {
+            width: 100%;
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 0.85rem 1.1rem;
+            font-family: var(--font-sans);
+            font-size: 0.92rem;
+            color: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .form-control-custom:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-surface-2);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        textarea.form-control-custom {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            resize: vertical;
+        }
+
+        .editor-meta-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.4rem;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            padding: 0.75rem 1.5rem;
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            font-weight: 700;
+            border-radius: var(--radius-md);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), #4338ca);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #7174f7, #4f46e5);
+            box-shadow: 0 6px 25px rgba(99, 102, 241, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface-2);
+            border-color: var(--border-subtle);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-surface-3);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .btn-sm {
+            padding: 0.45rem 0.9rem;
+            font-size: 0.8rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-block { width: 100%; }
+
+        /* =========================================================
+           ANALYSIS RESULTS VIEW
+           ========================================================= */
+        .verdict-hero-card {
+            background: linear-gradient(135deg, rgba(20, 27, 52, 0.95), rgba(13, 18, 34, 0.95));
+            border: 1px solid var(--border-active);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-card);
+        }
+
+        .gauge-flex-container {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .gauge-dial-box {
+            position: relative;
+            width: 170px;
+            height: 170px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+        }
+
+        .gauge-svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: var(--bg-surface-3);
+            stroke-width: 12;
+        }
+
+        .gauge-meter {
+            fill: none;
+            stroke: var(--risk-critical);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 440;
+            stroke-dashoffset: 440;
+            transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s;
+        }
+
+        .gauge-center-content {
+            position: absolute;
+            text-align: center;
+        }
+
+        .gauge-score-number {
+            font-family: var(--font-display);
+            font-size: 3.4rem;
+            font-weight: 900;
+            line-height: 1;
+            color: #ffffff;
+        }
+
+        .gauge-score-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .verdict-info-pane {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .contract-type-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: var(--radius-full);
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: var(--accent-sky);
+            font-size: 0.78rem;
+            font-weight: 700;
+            margin-bottom: 0.65rem;
+        }
+
+        .verdict-headline {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+
+        .verdict-headline h2 {
+            font-size: 1.85rem;
+            margin: 0;
+        }
+
+        /* Risk Badges */
+        .risk-badge {
+            padding: 0.4rem 1rem;
+            border-radius: var(--radius-full);
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .badge-critical { background: var(--risk-critical-bg); color: var(--risk-critical); border: 1px solid var(--risk-critical); }
+        .badge-high { background: var(--risk-high-bg); color: var(--risk-high); border: 1px solid var(--risk-high); }
+        .badge-medium { background: var(--risk-medium-bg); color: var(--risk-medium); border: 1px solid var(--risk-medium); }
+        .badge-low { background: var(--risk-low-bg); color: var(--risk-low); border: 1px solid var(--risk-low); }
+        .badge-minimal { background: var(--risk-minimal-bg); color: var(--risk-minimal); border: 1px solid var(--risk-minimal); }
+
+        .decision-badge {
+            padding: 0.4rem 1rem;
+            border-radius: var(--radius-full);
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            background: var(--bg-surface-3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        /* 4-Vector Risk Matrix */
+        .vector-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .vector-card {
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .vector-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .vector-value {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        /* Executive Summary Box */
+        .summary-banner {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: var(--radius-lg);
+            padding: 1.35rem 1.65rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .ai-insight-box {
+            background: rgba(6, 182, 212, 0.08);
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            padding: 1rem 1.25rem;
+            margin-top: 1rem;
+            font-size: 0.92rem;
+            color: #e2e8f0;
+        }
+
+        /* Compliance Progress Grid */
+        .compliance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .compliance-item-card {
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .compliance-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.65rem;
+        }
+
+        .compliance-name {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-surface-3);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill-bar {
+            height: 100%;
+            border-radius: var(--radius-full);
+            transition: width 1s ease;
+        }
+
+        /* Clause Matrix & Filter Bar */
+        .clause-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .filter-chip {
+            padding: 0.4rem 0.9rem;
+            border-radius: var(--radius-full);
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--bg-surface-2);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-chip:hover {
+            background: var(--bg-surface-3);
+            color: #ffffff;
+        }
+
+        .filter-chip.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: #ffffff;
+        }
+
+        .clause-list-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.75rem;
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .clause-row-item {
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 0.85rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+
+        .clause-row-item.present {
+            border-left: 4px solid var(--accent-emerald);
+        }
+
+        .clause-row-item.missing {
+            border-left: 4px solid var(--risk-critical);
+        }
+
+        .clause-row-name {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Financial Simulation Card */
+        .financial-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .fin-stat-card {
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.1rem;
+            text-align: center;
+        }
+
+        .fin-stat-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+        }
+
+        .fin-stat-value {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .sim-slider-container {
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .sim-slider-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .sim-range {
+            width: 100%;
+            accent-color: var(--accent-primary);
+            cursor: pointer;
+        }
+
+        /* Chatbot Sections */
+        .chat-shell {
+            display: flex;
+            flex-direction: column;
+            height: 520px;
+            background: var(--bg-surface-1);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .chat-body-stream {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .msg-bubble-wrap {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 82%;
+        }
+
+        .msg-bubble-wrap.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .msg-avatar.ai {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+            color: #ffffff;
+        }
+
+        .msg-avatar.user {
+            background: var(--bg-surface-3);
+            color: var(--text-primary);
+        }
+
+        .msg-bubble {
+            padding: 0.9rem 1.2rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.9rem;
+            line-height: 1.55;
+            position: relative;
+        }
+
+        .msg-bubble-wrap.ai .msg-bubble {
+            background: var(--bg-surface-2);
+            border: 1px solid var(--border-subtle);
+            color: #e2e8f0;
+            border-top-left-radius: var(--radius-sm);
+        }
+
+        .msg-bubble-wrap.user .msg-bubble {
+            background: linear-gradient(135deg, var(--accent-primary), #4f46e5);
+            color: #ffffff;
+            border-top-right-radius: var(--radius-sm);
+        }
+
+        .chat-prompt-pills-bar {
+            padding: 0.75rem 1.25rem 0.25rem;
+            background: var(--bg-surface-2);
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .chat-prompt-pills-bar::-webkit-scrollbar { display: none; }
+
+        .prompt-pill {
+            padding: 0.35rem 0.8rem;
+            background: var(--bg-surface-3);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .prompt-pill:hover {
+            background: var(--accent-primary);
+            color: #ffffff;
+        }
+
+        .chat-input-bar {
+            padding: 1rem 1.25rem;
+            background: var(--bg-surface-2);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast-item {
+            background: var(--bg-surface-2);
+            border: 1px solid var(--accent-primary);
+            border-radius: var(--radius-md);
+            padding: 0.9rem 1.3rem;
+            color: #ffffff;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            animation: slide-toast 0.3s ease;
+        }
+
+        @keyframes slide-toast {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1200px) {
+            .grid-12 { grid-template-columns: 1fr; }
+            .vector-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .hero-banner { padding: 1.5rem; }
+            .hero-banner h2 { font-size: 1.6rem; }
+            .gauge-flex-container { justify-content: center; text-align: center; }
+            .vector-grid { grid-template-columns: 1fr; }
+            .msg-bubble-wrap { max-width: 95%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =========================================================
+         TOP NAVIGATION BAR
+         ========================================================= -->
+    <header class="header-nav">
+        <div class="nav-container">
+            <a href="#" class="brand-cluster" onclick="switchTab('dashboard')">
+                <div class="brand-icon-wrapper">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div class="brand-text-block">
+                    <h1>EDIE Enterprise</h1>
+                    <div class="brand-tagline">Where Risk Meets Intelligence</div>
+                </div>
+            </a>
+
+            <div class="header-pills-cluster">
+                <div class="status-pill">
+                    <div class="status-dot"></div>
+                    <span id="backendStatusText">Backend Online</span>
+                </div>
+                <div class="status-pill engine-pill" id="aiStatusPill">
+                    <i class="fas fa-microchip"></i>
+                    <span id="aiStatusText">AI Initializing...</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="exportFullSessionData()" title="Backup & Export Session Data">
+                    <i class="fas fa-download"></i> Export Data
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================================
+         MAIN APPLICATION SHELL
+         ========================================================= -->
+    <main class="app-shell">
+
+        <!-- Tab Navigation Bar -->
+        <nav class="tab-nav-bar" role="tablist">
+            <button class="tab-btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">
+                <i class="fas fa-chart-pie"></i> Executive Dashboard
+            </button>
+            <button class="tab-btn" id="tab-analyze-btn" onclick="switchTab('analyze')">
+                <i class="fas fa-bolt"></i> Contract Intelligence
+            </button>
+            <button class="tab-btn" id="tab-assistant-btn" onclick="switchTab('assistant')">
+                <i class="fas fa-robot"></i> AI Legal Assistant
+            </button>
+            <button class="tab-btn" id="tab-kb-btn" onclick="switchTab('knowledge')">
+                <i class="fas fa-database"></i> Knowledge Base <span class="tab-badge" id="kbDatasetBadge">9</span>
+            </button>
+            <button class="tab-btn" id="tab-history-btn" onclick="switchTab('history')">
+                <i class="fas fa-clock-rotate-left"></i> Audit Archive <span class="tab-badge" id="historyBadge">0</span>
+            </button>
+        </nav>
+
+        <!-- =====================================================
+             TAB 1: EXECUTIVE DASHBOARD
+             ===================================================== -->
+        <section id="dashboard" class="tab-pane active">
+            
+            <!-- Hero Banner -->
+            <div class="hero-banner">
+                <div class="hero-banner-content">
+                    <div class="hero-tag">
+                        <i class="fas fa-shield-halved"></i> Enterprise Contract Risk Intelligence v5.0
+                    </div>
+                    <h2>Transform High-Risk Contracts into Profitable Decisions</h2>
+                    <p>
+                        EDIE automatically detects contract types, identifies missing legal safeguards, enforces Indian regulatory compliance (DPDP, MSME, GST), and quantifies your net financial ROI.
+                    </p>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary" onclick="switchTab('analyze')">
+                            <i class="fas fa-file-contract"></i> Analyze New Contract
+                        </button>
+                        <button class="btn btn-secondary" onclick="loadSamplePreset('saas')">
+                            <i class="fas fa-play"></i> Test SaaS Contract Demo
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bento KPI Metrics -->
+            <div class="grid-12" style="margin-bottom: 2rem;">
+                <div class="kpi-card" style="grid-column: span 3;">
+                    <div class="kpi-card-header">
+                        <span>Total Contracts</span>
+                        <div class="kpi-icon-pill"><i class="fas fa-file-invoice"></i></div>
+                    </div>
+                    <div class="kpi-value mono" id="kpiTotalDocs">0</div>
+                    <div class="kpi-footer"><i class="fas fa-check-circle text-success"></i> Real-time audit logged</div>
+                </div>
+
+                <div class="kpi-card" style="grid-column: span 3;">
+                    <div class="kpi-card-header">
+                        <span>High / Critical Risk</span>
+                        <div class="kpi-icon-pill" style="color: var(--risk-critical);"><i class="fas fa-triangle-exclamation"></i></div>
+                    </div>
+                    <div class="kpi-value mono" id="kpiHighRisk" style="color: var(--risk-critical);">0</div>
+                    <div class="kpi-footer"><i class="fas fa-shield-xmark text-danger"></i> Needs renegotiation</div>
+                </div>
+
+                <div class="kpi-card" style="grid-column: span 3;">
+                    <div class="kpi-card-header">
+                        <span>Avg Risk Score</span>
+                        <div class="kpi-icon-pill" style="color: var(--accent-sky);"><i class="fas fa-gauge-high"></i></div>
+                    </div>
+                    <div class="kpi-value mono" id="kpiAvgRisk">0.0</div>
+                    <div class="kpi-footer"><i class="fas fa-chart-line"></i> Scaled 0 (Safe) to 100</div>
+                </div>
+
+                <div class="kpi-card" style="grid-column: span 3;">
+                    <div class="kpi-card-header">
+                        <span>Knowledge Base Rules</span>
+                        <div class="kpi-icon-pill" style="color: var(--accent-emerald);"><i class="fas fa-layer-group"></i></div>
+                    </div>
+                    <div class="kpi-value mono" id="kpiKbCount">9</div>
+                    <div class="kpi-footer"><i class="fas fa-certificate text-success"></i> DPDP, MSME, ISO active</div>
+                </div>
+            </div>
+
+            <!-- Charts & Activity Row -->
+            <div class="grid-12" style="margin-bottom: 2rem;">
+                <div class="card" style="grid-column: span 6;">
+                    <div class="card-header-styled">
+                        <h3><i class="fas fa-chart-pie"></i> Risk Level Distribution</h3>
+                        <span class="status-pill"><i class="fas fa-circle-notch fa-spin"></i> Live telemetry</span>
+                    </div>
+                    <div style="height: 280px; display: flex; align-items: center; justify-content: center;">
+                        <canvas id="riskDonutChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card" style="grid-column: span 6;">
+                    <div class="card-header-styled">
+                        <h3><i class="fas fa-bolt"></i> 1-Click Test Contracts (Presets)</h3>
+                        <span class="status-pill">Instant Demo</span>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                        Select a pre-loaded enterprise contract scenario to test EDIE's detection & risk quantification instantly:
+                    </p>
+                    <div class="preset-grid">
+                        <div class="preset-card" onclick="loadSamplePreset('saas')">
+                            <div>
+                                <div class="preset-card-title"><i class="fas fa-cloud text-info"></i> SaaS SLA Agreement</div>
+                                <div class="preset-card-desc">Missing DPDP 2023 compliance, unlimited liability, foreign jurisdiction.</div>
+                            </div>
+                            <div class="preset-card-footer">
+                                <span class="badge-critical risk-badge" style="font-size: 0.7rem;">High Risk</span>
+                                <span style="color: var(--accent-sky);">Click to Load →</span>
+                            </div>
+                        </div>
+
+                        <div class="preset-card" onclick="loadSamplePreset('employment')">
+                            <div>
+                                <div class="preset-card-title"><i class="fas fa-user-tie text-success"></i> Employment Contract</div>
+                                <div class="preset-card-desc">Standard executive terms, salary, probation, IP & confidentiality clauses.</div>
+                            </div>
+                            <div class="preset-card-footer">
+                                <span class="badge-low risk-badge" style="font-size: 0.7rem;">Low Risk</span>
+                                <span style="color: var(--accent-sky);">Click to Load →</span>
+                            </div>
+                        </div>
+
+                        <div class="preset-card" onclick="loadSamplePreset('vendor')">
+                            <div>
+                                <div class="preset-card-title"><i class="fas fa-truck text-warning"></i> Vendor Supply Contract</div>
+                                <div class="preset-card-desc">Violates MSME 45-day rule (90-day payment) & lacks GST details.</div>
+                            </div>
+                            <div class="preset-card-footer">
+                                <span class="badge-high risk-badge" style="font-size: 0.7rem;">MSME Breach</span>
+                                <span style="color: var(--accent-sky);">Click to Load →</span>
+                            </div>
+                        </div>
+
+                        <div class="preset-card" onclick="loadSamplePreset('nda')">
+                            <div>
+                                <div class="preset-card-title"><i class="fas fa-lock text-primary"></i> Mutual NDA Agreement</div>
+                                <div class="preset-card-desc">Standard 3-year term, trade secret protections, clear remedies.</div>
+                            </div>
+                            <div class="preset-card-footer">
+                                <span class="badge-minimal risk-badge" style="font-size: 0.7rem;">Minimal Risk</span>
+                                <span style="color: var(--accent-sky);">Click to Load →</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Analysis Feed -->
+            <div class="card">
+                <div class="card-header-styled">
+                    <h3><i class="fas fa-list-check"></i> Recent Contract Analyses</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="switchTab('history')">View Full Archive</button>
+                </div>
+                <div id="dashboardRecentList">
+                    <p class="text-muted text-center" style="padding: 2rem;">No contracts analyzed yet. Upload or paste a contract to begin.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- =====================================================
+             TAB 2: DEEP CONTRACT INTELLIGENCE
+             ===================================================== -->
+        <section id="analyze" class="tab-pane">
+            <div class="grid-12">
+                
+                <!-- Left Input Column -->
+                <div style="grid-column: span 5;">
+                    <div class="card">
+                        <div class="card-header-styled">
+                            <h3><i class="fas fa-file-import"></i> Contract Input</h3>
+                            <button class="btn btn-secondary btn-sm" onclick="clearContractInput()" title="Clear form">
+                                <i class="fas fa-rotate-left"></i> Reset
+                            </button>
+                        </div>
+
+                        <!-- Dropzone -->
+                        <div class="dropzone-box" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                            <input type="file" id="fileInput" accept=".pdf,.docx,.txt" style="display: none;">
+                            <i class="fas fa-cloud-arrow-up dropzone-icon"></i>
+                            <div class="dropzone-title">Drop PDF, DOCX, or TXT file</div>
+                            <div class="dropzone-subtitle">or click to browse from your device</div>
+                        </div>
+
+                        <!-- Selected File Pill -->
+                        <div class="file-status-pill" id="fileStatusPill">
+                            <div style="display: flex; align-items: center; gap: 0.65rem; overflow: hidden;">
+                                <i class="fas fa-file-lines" style="color: var(--accent-sky); font-size: 1.2rem;"></i>
+                                <span id="fileNameDisplay" class="mono" style="font-size: 0.85rem; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"></span>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="removeSelectedFile(event)" style="padding: 0.2rem 0.6rem;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0;">
+                            <hr style="flex: 1; border-color: var(--border-subtle);">
+                            <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">OR PASTE TEXT</span>
+                            <hr style="flex: 1; border-color: var(--border-subtle);">
+                        </div>
+
+                        <!-- Text Input -->
+                        <div class="form-group">
+                            <textarea id="contractTextInput" class="form-control-custom" rows="8" placeholder="Paste full contract agreement text here..."></textarea>
+                            <div class="editor-meta-bar">
+                                <span id="charWordCount">0 chars · 0 words</span>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button class="btn btn-secondary btn-sm" style="padding: 0.15rem 0.5rem; font-size: 0.72rem;" onclick="pasteFromClipboard()">
+                                        <i class="fas fa-paste"></i> Paste
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parameters Form -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                            <div>
+                                <label class="form-label">Contract Value (₹)</label>
+                                <input type="number" id="paramContractValue" class="form-control-custom mono" value="10000000" step="500000">
+                                <small id="valueFormatted" style="color: var(--accent-sky); font-size: 0.72rem; font-weight: 600;">₹1.00 Crore</small>
+                            </div>
+                            <div>
+                                <label class="form-label">Term Length (Years)</label>
+                                <input type="number" id="paramTermYears" class="form-control-custom mono" value="2" min="1" max="15">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Target Industry Profile</label>
+                            <select id="paramIndustry" class="form-control-custom">
+                                <option value="default">General Commercial (1.0x)</option>
+                                <option value="technology">Technology & SaaS (1.1x Multiplier)</option>
+                                <option value="banking">Banking & Fintech (1.3x Multiplier)</option>
+                                <option value="healthcare">Healthcare & Pharma (1.25x Multiplier)</option>
+                                <option value="government">Government & Defense (1.2x Multiplier)</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary btn-block" id="btnAnalyze" onclick="executeContractAnalysis()">
+                            <i class="fas fa-microchip"></i> Execute Deep AI Analysis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Results Column -->
+                <div style="grid-column: span 7;">
+                    
+                    <!-- Empty State Placeholder -->
+                    <div id="resultsEmptyPlaceholder" class="card" style="text-align: center; padding: 4rem 2rem;">
+                        <div style="width: 80px; height: 80px; background: var(--bg-surface-2); border-radius: 50%; display: grid; place-items: center; margin: 0 auto 1.5rem; font-size: 2.2rem; color: var(--accent-sky);">
+                            <i class="fas fa-shield-halved"></i>
+                        </div>
+                        <h3 style="font-size: 1.4rem; margin-bottom: 0.5rem;">Awaiting Contract Input</h3>
+                        <p style="color: var(--text-secondary); max-width: 480px; margin: 0 auto 1.5rem;">
+                            Upload a contract document or paste text on the left, then click <strong>Execute Deep AI Analysis</strong> to view quantified risks, missing clauses, and ROI calculations.
+                        </p>
+                        <div style="display: flex; justify-content: center; gap: 0.75rem;">
+                            <button class="btn btn-secondary btn-sm" onclick="loadSamplePreset('saas')">Load SaaS Demo</button>
+                            <button class="btn btn-secondary btn-sm" onclick="loadSamplePreset('vendor')">Load Vendor Demo</button>
+                        </div>
+                    </div>
+
+                    <!-- Live Loading State -->
+                    <div id="resultsLoadingSpinner" class="card" style="display: none; text-align: center; padding: 4rem 2rem;">
+                        <i class="fas fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 1.5rem;"></i>
+                        <h3 style="font-size: 1.4rem; margin-bottom: 0.5rem;">Analyzing Contract Clauses & Regulatory Rules...</h3>
+                        <p style="color: var(--text-secondary);">Extracting clauses, running DPDP/MSME compliance checks, and computing risk exposure.</p>
+                    </div>
+
+                    <!-- Populated Results Container -->
+                    <div id="resultsPopulatedContainer" style="display: none;">
+                        
+                        <!-- Top Verdict Header Card -->
+                        <div class="verdict-hero-card" id="verdictHero">
+                            <div class="gauge-flex-container">
+                                
+                                <!-- Animated Radial SVG Gauge -->
+                                <div class="gauge-dial-box">
+                                    <svg class="gauge-svg" viewBox="0 0 160 160">
+                                        <circle class="gauge-bg" cx="80" cy="80" r="70"></circle>
+                                        <circle class="gauge-meter" id="gaugeMeterCircle" cx="80" cy="80" r="70"></circle>
+                                    </svg>
+                                    <div class="gauge-center-content">
+                                        <div class="gauge-score-number mono" id="resScoreNum">0</div>
+                                        <div class="gauge-score-label">Risk Index</div>
+                                    </div>
+                                </div>
+
+                                <!-- Verdict Info -->
+                                <div class="verdict-info-pane">
+                                    <div class="contract-type-pill" id="resContractTypePill">
+                                        <i class="fas fa-file-contract"></i> <span id="resContractType">General Contract</span>
+                                    </div>
+                                    <div class="verdict-headline">
+                                        <span class="risk-badge" id="resRiskBadge">HIGH RISK</span>
+                                        <span class="decision-badge" id="resDecisionBadge">NEGOTIATE</span>
+                                    </div>
+                                    <p id="resActionDirective" style="color: #e2e8f0; font-size: 0.95rem; font-weight: 500; margin-bottom: 0.75rem;"></p>
+                                    
+                                    <!-- Action Buttons -->
+                                    <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+                                        <button class="btn btn-success btn-sm" onclick="downloadDocxReport()">
+                                            <i class="fas fa-file-word"></i> Download Official DOCX
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" onclick="window.print()">
+                                            <i class="fas fa-print"></i> Print Report
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" onclick="copyAnalysisSummary()">
+                                            <i class="fas fa-copy"></i> Copy Brief
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4-Vector Breakdown Grid -->
+                            <div class="vector-grid">
+                                <div class="vector-card">
+                                    <div class="vector-title">⚖️ Legal Risk</div>
+                                    <div class="vector-value mono" id="resLegalRisk">0%</div>
+                                </div>
+                                <div class="vector-card">
+                                    <div class="vector-title">💰 Financial Risk</div>
+                                    <div class="vector-value mono" id="resFinancialRisk">0%</div>
+                                </div>
+                                <div class="vector-card">
+                                    <div class="vector-title">🛡️ Compliance Risk</div>
+                                    <div class="vector-value mono" id="resComplianceRisk">0%</div>
+                                </div>
+                                <div class="vector-card">
+                                    <div class="vector-title">⚙️ Operational Risk</div>
+                                    <div class="vector-value mono" id="resOperationalRisk">0%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Executive Summary & AI Insights -->
+                        <div class="summary-banner">
+                            <h4 style="font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.65rem; color: #ffffff;">
+                                <i class="fas fa-clipboard-check text-info"></i> Executive Decision Briefing
+                            </h4>
+                            <p id="resExecutiveSummary" style="color: #cbd5e1; font-size: 0.92rem; line-height: 1.6;"></p>
+                            
+                            <div class="ai-insight-box" id="resAiInsightBox" style="display: none;">
+                                <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--accent-cyan); margin-bottom: 0.35rem;">
+                                    <i class="fas fa-microchip"></i> AI Neural Reasoning Insight
+                                </div>
+                                <div id="resAiInsightText"></div>
+                            </div>
+                        </div>
+
+                        <!-- Compliance Breakdown Card -->
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <div class="card-header-styled">
+                                <h3><i class="fas fa-scale-balanced"></i> Statutory Compliance Assessment</h3>
+                                <div class="mono" style="font-size: 0.9rem; font-weight: 700; color: var(--accent-emerald);" id="resOverallCompliance">Score: 0%</div>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                                Evaluates alignment with Indian regulatory frameworks relevant to this contract type:
+                            </p>
+                            <div class="compliance-grid" id="complianceGridContainer"></div>
+                        </div>
+
+                        <!-- Clause Matrix & Filter Table -->
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <div class="card-header-styled">
+                                <h3><i class="fas fa-list-check"></i> Standard Clause Matrix</h3>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <span class="badge-low risk-badge" id="resClausePresentCount">0 Present</span>
+                                    <span class="badge-critical risk-badge" id="resClauseMissingCount">0 Missing</span>
+                                </div>
+                            </div>
+
+                            <!-- Filter Chips -->
+                            <div class="clause-filter-bar">
+                                <button class="filter-chip active" onclick="filterClauseMatrix('all', this)">All Clauses</button>
+                                <button class="filter-chip" onclick="filterClauseMatrix('missing', this)">❌ Missing Safeguards</button>
+                                <button class="filter-chip" onclick="filterClauseMatrix('present', this)">✅ Detected Safeguards</button>
+                                <input type="text" id="clauseSearchInput" class="form-control-custom" placeholder="Search clauses..." style="width: 200px; padding: 0.35rem 0.75rem; font-size: 0.8rem; margin-left: auto;" oninput="searchClauses(this.value)">
+                            </div>
+
+                            <div class="clause-list-grid" id="clauseListContainer"></div>
+                        </div>
+
+                        <!-- Financial Impact & ROI Simulation -->
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <div class="card-header-styled">
+                                <h3><i class="fas fa-coins"></i> Financial Impact & Profitability Simulation</h3>
+                                <span class="status-pill" id="resFinRoiPill">Net ROI: 0%</span>
+                            </div>
+
+                            <div class="financial-kpi-grid">
+                                <div class="fin-stat-card">
+                                    <div class="fin-stat-label">Total Contract Value</div>
+                                    <div class="fin-stat-value mono text-info" id="finTotalValue">₹0</div>
+                                </div>
+                                <div class="fin-stat-card">
+                                    <div class="fin-stat-label">Expected Gross Profit</div>
+                                    <div class="fin-stat-value mono text-success" id="finGrossProfit">₹0</div>
+                                </div>
+                                <div class="fin-stat-card">
+                                    <div class="fin-stat-label">Risk Exposure Loss</div>
+                                    <div class="fin-stat-value mono text-danger" id="finRiskExposure">₹0</div>
+                                </div>
+                                <div class="fin-stat-card">
+                                    <div class="fin-stat-label">Risk-Adjusted Profit</div>
+                                    <div class="fin-stat-value mono" style="color: var(--accent-sky);" id="finNetProfit">₹0</div>
+                                </div>
+                            </div>
+
+                            <!-- Interactive Margin Slider -->
+                            <div class="sim-slider-container">
+                                <div class="sim-slider-header">
+                                    <span><i class="fas fa-sliders text-info"></i> Interactive Margin % Simulator</span>
+                                    <span class="mono" id="simMarginDisplay">30% Default Margin</span>
+                                </div>
+                                <input type="range" class="sim-range" id="simMarginSlider" min="10" max="60" value="30" oninput="recalculateSimulation(this.value)">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                                    <span>10% (Low Margin)</span>
+                                    <span>30% (Standard)</span>
+                                    <span>60% (High Margin SaaS)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recommendations & Action Plan -->
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <div class="card-header-styled">
+                                <h3><i class="fas fa-lightbulb"></i> Recommended Action Steps & Safeguards</h3>
+                                <span class="status-pill"><i class="fas fa-shield-check"></i> Prioritized Fixes</span>
+                            </div>
+                            <div id="recommendationsContainer" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+                        </div>
+
+                        <!-- Dedicated Contextual Chatbot -->
+                        <div class="card">
+                            <div class="card-header-styled">
+                                <h3><i class="fas fa-comments"></i> Ask EDIE About This Specific Contract</h3>
+                                <button class="btn btn-secondary btn-sm" onclick="clearAnalysisChat()">Clear Chat</button>
+                            </div>
+                            
+                            <div class="chat-shell" style="height: 380px;">
+                                <div class="chat-body-stream" id="analysisChatStream">
+                                    <div class="msg-bubble-wrap ai">
+                                        <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                                        <div class="msg-bubble">
+                                            🤖 I've analyzed this contract. You can ask me specific questions like:
+                                            <ul style="margin: 0.5rem 0 0 1.25rem; font-size: 0.85rem;">
+                                                <li>"Why is the risk score high?"</li>
+                                                <li>"Explain why the Data Protection clause is missing."</li>
+                                                <li>"Give me a sample Liability Cap clause to negotiate."</li>
+                                                <li>"How does the MSME 45-day payment rule apply here?"</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="chat-prompt-pills-bar">
+                                    <span class="prompt-pill" onclick="sendAnalysisQuestion('Why is the risk score calculated as this?')">❓ Why this score?</span>
+                                    <span class="prompt-pill" onclick="sendAnalysisQuestion('Explain why Data Protection is critical here')">🔒 Data Protection gap</span>
+                                    <span class="prompt-pill" onclick="sendAnalysisQuestion('Provide a sample mutual Liability Cap clause')">📝 Liability clause fix</span>
+                                    <span class="prompt-pill" onclick="sendAnalysisQuestion('What should be our priority negotiation points?')">🎯 Negotiation points</span>
+                                </div>
+
+                                <div class="chat-input-bar">
+                                    <input type="text" id="analysisChatInput" class="form-control-custom" placeholder="Ask questions about this specific contract..." onkeydown="if(event.key==='Enter') submitAnalysisChat()">
+                                    <button class="btn btn-primary" onclick="submitAnalysisChat()">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             TAB 3: AI LEGAL & COMPLIANCE ASSISTANT
+             ===================================================== -->
+        <section id="assistant" class="tab-pane">
+            <div class="grid-12">
+                <div style="grid-column: span 8;">
+                    <div class="card" style="padding: 0; overflow: hidden;">
+                        <div class="card-header-styled" style="padding: 1.25rem 1.5rem; margin-bottom: 0;">
+                            <div>
+                                <h3><i class="fas fa-brain text-info"></i> EDIE Legal & Regulatory AI Assistant</h3>
+                                <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0;">
+                                    Conversational RAG interface powered by Indian statutory laws & contract jurisprudence.
+                                </p>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="clearMainChat()">
+                                <i class="fas fa-trash-can"></i> New Chat
+                            </button>
+                        </div>
+
+                        <div class="chat-shell" style="height: 560px; border: none; border-radius: 0;">
+                            <div class="chat-body-stream" id="mainChatStream">
+                                <div class="msg-bubble-wrap ai">
+                                    <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                                    <div class="msg-bubble">
+                                        👋 <strong>Welcome to EDIE AI Legal Assistant!</strong><br><br>
+                                        I am pre-loaded with comprehensive Indian compliance rules and contract clauses. Ask me anything about:
+                                        <ul style="margin: 0.5rem 0 0 1.25rem; font-size: 0.88rem; line-height: 1.6;">
+                                            <li><strong>DPDP Act 2023</strong>: Penalties up to ₹250 Cr, consent managers, 48-hour breach notice</li>
+                                            <li><strong>MSME Development Act 2006</strong>: Mandatory 45-day payment limit & 3x compound bank interest</li>
+                                            <li><strong>GST & TDS Invoicing</strong>: Section 194 withholding taxes & Input Tax Credit safeguards</li>
+                                            <li><strong>ISO 27001 & Cyber Governance</strong>: 93 Annex A controls, SOC2, CERT-In guidelines</li>
+                                            <li><strong>Contract Drafting</strong>: Indemnity caps, IP assignment, dispute arbitration</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chat-prompt-pills-bar">
+                                <span class="prompt-pill" onclick="sendMainChatQuestion('What are the penalties under the DPDP Act 2023?')">🛡️ DPDP Penalties</span>
+                                <span class="prompt-pill" onclick="sendMainChatQuestion('What is the MSME 45-day payment rule and penalty interest?')">⏱️ MSME 45-Day Rule</span>
+                                <span class="prompt-pill" onclick="sendMainChatQuestion('What are the standard mandatory clauses for an Employment Agreement in India?')">👔 Employment Clauses</span>
+                                <span class="prompt-pill" onclick="sendMainChatQuestion('How should a SaaS liability cap clause be structured?')">💻 SaaS Liability Caps</span>
+                                <span class="prompt-pill" onclick="sendMainChatQuestion('Explain ISO 27001 requirements for software vendors')">🔒 ISO 27001 Controls</span>
+                            </div>
+
+                            <div class="chat-input-bar">
+                                <input type="text" id="mainChatInput" class="form-control-custom" placeholder="Type your compliance or legal question here..." onkeydown="if(event.key==='Enter') submitMainChat()">
+                                <button class="btn btn-primary" onclick="submitMainChat()">
+                                    <i class="fas fa-paper-plane"></i> Send
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Quick Facts Column -->
+                <div style="grid-column: span 4;">
+                    <div class="card" style="margin-bottom: 1.25rem;">
+                        <div class="card-header-styled">
+                            <h3><i class="fas fa-gavel"></i> Regulatory Quick Reference</h3>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.85rem;">
+                            <div style="background: var(--bg-surface-1); padding: 0.85rem; border-radius: var(--radius-md); border-left: 3px solid var(--risk-critical);">
+                                <strong style="color: #ffffff;">DPDP Act 2023</strong>
+                                <p style="color: var(--text-secondary); margin-top: 0.25rem;">Penalties up to ₹250 Crores for significant data breaches. Requires explicit consent and 48-hour reporting.</p>
+                            </div>
+                            <div style="background: var(--bg-surface-1); padding: 0.85rem; border-radius: var(--radius-md); border-left: 3px solid var(--risk-high);">
+                                <strong style="color: #ffffff;">MSME Act Section 15 & 16</strong>
+                                <p style="color: var(--text-secondary); margin-top: 0.25rem;">Payment due within 45 days. Late payments incur mandatory compound interest at 3x RBI bank rate.</p>
+                            </div>
+                            <div style="background: var(--bg-surface-1); padding: 0.85rem; border-radius: var(--radius-md); border-left: 3px solid var(--accent-sky);">
+                                <strong style="color: #ffffff;">Indian Contract Act 1872</strong>
+                                <p style="color: var(--text-secondary); margin-top: 0.25rem;">Requires valid consideration, lawful object, competent parties, and clear dispute resolution jurisdiction.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             TAB 4: KNOWLEDGE BASE DATASET EXPLORER
+             ===================================================== -->
+        <section id="knowledge" class="tab-pane">
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header-styled">
+                    <div>
+                        <h3><i class="fas fa-database text-info"></i> Loaded Knowledge Base Datasets</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0;">
+                            Explore the underlying JSON rule sets, compliance taxonomies, and legal clause libraries.
+                        </p>
+                    </div>
+                    <input type="text" id="kbSearchInput" class="form-control-custom" placeholder="Filter knowledge base..." style="width: 260px;" oninput="filterKnowledgeBase(this.value)">
+                </div>
+
+                <div class="grid-12" id="kbDatasetCardsGrid">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
+
+            <!-- JSON Viewer Modal / Section -->
+            <div class="card" id="kbViewerCard" style="display: none;">
+                <div class="card-header-styled">
+                    <h3 id="kbViewerTitle"><i class="fas fa-code"></i> Dataset Inspector</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('kbViewerCard').style.display='none'">Close</button>
+                </div>
+                <pre id="kbViewerContent" class="mono" style="max-height: 450px; overflow-y: auto; background: var(--bg-surface-1); padding: 1rem; border-radius: var(--radius-md); font-size: 0.82rem; color: #a5b4fc;"></pre>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             TAB 5: AUDIT ARCHIVE & HISTORY
+             ===================================================== -->
+        <section id="history" class="tab-pane">
+            <div class="card">
+                <div class="card-header-styled">
+                    <div>
+                        <h3><i class="fas fa-clock-rotate-left"></i> Analysis Audit Archive</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0;">
+                            Historical record of all contract risk audits performed during this session.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 0.65rem;">
+                        <button class="btn btn-secondary btn-sm" onclick="clearAnalysisHistory()">
+                            <i class="fas fa-trash-can"></i> Clear Archive
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="loadHistoryData()">
+                            <i class="fas fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div id="historyTableContainer">
+                    <p class="text-muted text-center" style="padding: 3rem;">No historical analyses recorded yet.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notifications Root -->
+    <div class="toast-container" id="toastRoot"></div>
+
+    <!-- =========================================================
+         JAVASCRIPT ENGINE & APPLICATION LOGIC
+         ========================================================= -->
+    <script>
+        const API_BASE = window.location.origin.includes(':3000') ? 'http://localhost:8000' : window.location.origin;
+        
+        let riskDonutChart = null;
+        let activeAnalysis = null;
+        let kbDataCache = null;
+        let mainSessionId = 'session_' + Date.now();
+        let analysisSessionId = null;
+
+        // Sample Test Contract Presets
+        const SAMPLE_PRESETS = {
+            saas: {
+                name: "Enterprise SaaS SLA Agreement",
+                value: 25000000,
+                term: 3,
+                industry: "technology",
+                text: `MASTER SOFTWARE AS A SERVICE AGREEMENT
+This Agreement is entered into on this 15th day of March 2024, between CloudTech Global Inc. ("Vendor") and Alpha Retailers Private Limited ("Customer").
+
+1. SCOPE OF SERVICES: Vendor shall provide access to its cloud analytics platform as specified in Order Form A.
+2. LICENSE GRANT: Vendor grants Customer a non-exclusive, revocable, non-transferable license to access the SaaS Platform.
+3. FEES AND PAYMENT: Customer agrees to pay the subscription fee within 60 days of invoice receipt.
+4. TERM AND TERMINATION: This agreement shall commence on the Effective Date for a term of 3 years. Either party may terminate with 30 days written notice.
+5. DISCLAIMER OF WARRANTIES: THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+6. UNLIMITED LIABILITY & INDEMNITY: Customer shall defend, indemnify and hold harmless Vendor against any and all claims, liabilities, and damages without limitation.
+7. GOVERNING LAW AND JURISDICTION: This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware, USA, and the courts of New York shall have exclusive jurisdiction.`
+            },
+            employment: {
+                name: "Senior Executive Employment Agreement",
+                value: 4500000,
+                term: 2,
+                industry: "default",
+                text: `EMPLOYMENT AGREEMENT
+This Employment Agreement is entered into between TechNova Solutions Private Limited ("Company") and Rahul Sharma ("Employee").
+
+1. POSITION AND DUTIES: The Employee is appointed as Vice President of Engineering and shall perform responsibilities as directed by the CTO.
+2. COMPENSATION & SALARY: The Company shall pay the Employee an annual gross salary of INR 45,00,000 subject to applicable statutory deductions including TDS, Provident Fund, and Income Tax.
+3. PROBATION & NOTICE PERIOD: The Employee shall be on probation for 3 months. Following confirmation, either party may terminate this agreement by providing 60 days prior written notice.
+4. CONFIDENTIALITY: The Employee agrees not to disclose proprietary information, source code, trade secrets, or client lists during or after employment.
+5. INTELLECTUAL PROPERTY: All inventions, software code, algorithms, and works created by the Employee during the term shall belong exclusively to the Company.
+6. GOVERNING LAW: This Agreement is governed by the laws of India and subject to the jurisdiction of courts in Bengaluru, Karnataka.`
+            },
+            vendor: {
+                name: "Vendor Supply Agreement (MSME Risk)",
+                value: 12000000,
+                term: 1,
+                industry: "default",
+                text: `VENDOR SUPPLY AGREEMENT
+This Agreement is made between MegaCorp Logistics Ltd ("Buyer") and Precision Tools MSME Enterprise ("Supplier").
+
+1. SUPPLY OF GOODS: Supplier shall manufacture and deliver industrial components per monthly purchase orders.
+2. PAYMENT TERMS: Buyer shall make payment within 90 days of receipt of material and accepted delivery challan. No interest shall be payable on delayed payments.
+3. TERMINATION: Buyer reserves the right to terminate this agreement immediately without notice or penalty at its sole discretion.
+4. INDEMNITY: Supplier shall indemnify Buyer against any losses or delays without limitation.
+5. WARRANTY: Supplier warrants goods against manufacturing defects for a period of 6 months.`
+            },
+            nda: {
+                name: "Mutual Non-Disclosure Agreement (NDA)",
+                value: 5000000,
+                term: 2,
+                industry: "default",
+                text: `MUTUAL NON-DISCLOSURE AGREEMENT
+This Non-Disclosure Agreement ("Agreement") is entered into between Zenith Bio Labs ("Disclosing Party") and Innovatech Partners ("Receiving Party").
+
+1. DEFINITION OF CONFIDENTIAL INFORMATION: Confidential Information includes all proprietary technical, financial, and business data disclosed in writing or orally.
+2. NON-DISCLOSURE OBLIGATIONS: The Receiving Party shall protect confidential information with the same degree of care it uses for its own confidential data, but not less than reasonable care.
+3. EXCEPTIONS: Confidential Information does not include information already public, independently developed, or required by law to be disclosed.
+4. TERM: This Agreement shall remain in effect for 2 years from the Effective Date, and confidentiality obligations shall survive for 3 years post-termination.
+5. REMEDIES: Both parties acknowledge monetary damages may be inadequate and injunctive relief is available.
+6. GOVERNING LAW: Governed by the laws of India with jurisdiction in Mumbai courts.`
+            }
+        };
+
+        // =====================================================
+        // INITIALIZATION & EVENT LISTENERS
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+            setupDropZone();
+            setupContractValueFormatter();
+        });
+
+        async function initApp() {
+            await checkSystemHealth();
+            await loadDashboardMetrics();
+            await loadKnowledgeBaseData();
+            await loadHistoryData();
+        }
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            const targetPane = document.getElementById(tabId);
+            const targetBtn = document.getElementById(`tab-${tabId}-btn`);
+
+            if (targetPane) targetPane.classList.add('active');
+            if (targetBtn) targetBtn.classList.add('active');
+
+            if (tabId === 'dashboard') {
+                loadDashboardMetrics();
+            } else if (tabId === 'history') {
+                loadHistoryData();
+            }
+        }
+
+        // Format Contract Value as Crore / Lakh
+        function setupContractValueFormatter() {
+            const valInput = document.getElementById('paramContractValue');
+            const formatDisplay = document.getElementById('valueFormatted');
+
+            const update = () => {
+                const val = parseFloat(valInput.value) || 0;
+                if (val >= 10000000) {
+                    formatDisplay.innerText = `₹${(val / 10000000).toFixed(2)} Crore`;
+                } else if (val >= 100000) {
+                    formatDisplay.innerText = `₹${(val / 100000).toFixed(2)} Lakh`;
+                } else {
+                    formatDisplay.innerText = `₹${val.toLocaleString('en-IN')}`;
+                }
+            };
+
+            valInput.addEventListener('input', update);
+            update();
+
+            // Word / Char count updater
+            const txt = document.getElementById('contractTextInput');
+            const meta = document.getElementById('charWordCount');
+            txt.addEventListener('input', () => {
+                const len = txt.value.length;
+                const words = txt.value.trim() ? txt.value.trim().split(/\s+/).length : 0;
+                meta.innerText = `${len} chars · ${words} words`;
+            });
+        }
+
+        // =====================================================
+        // BACKEND & DASHBOARD DATA LOADERS
+        // =====================================================
+        async function checkSystemHealth() {
+            try {
+                const res = await fetch(`${API_BASE}/`);
+                const data = await res.json();
+                
+                document.getElementById('backendStatusText').innerText = 'Backend Online (v5.0)';
+                const aiPill = document.getElementById('aiStatusPill');
+                const aiText = document.getElementById('aiStatusText');
+
+                if (data.ai_available) {
+                    aiText.innerText = 'AI Ready (OpenRouter / Gemma)';
+                    aiPill.style.color = '#86efac';
+                    aiPill.style.borderColor = '#22c55e';
+                } else {
+                    aiText.innerText = 'Rule & Knowledge Engine Active';
+                    aiPill.style.color = '#93c5fd';
+                    aiPill.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                }
+            } catch (err) {
+                console.error('API Error:', err);
+                document.getElementById('backendStatusText').innerText = 'Backend Offline';
+                showToast('Unable to connect to FastAPI backend server.', 'danger');
+            }
+        }
+
+        async function loadDashboardMetrics() {
+            try {
+                const res = await fetch(`${API_BASE}/dashboard`);
+                const data = await res.json();
+
+                document.getElementById('kpiTotalDocs').innerText = data.total_documents_analyzed || 0;
+                document.getElementById('kpiHighRisk').innerText = data.high_risk_contracts || 0;
+                document.getElementById('kpiAvgRisk').innerText = (data.average_risk_score || 0).toFixed(1);
+
+                renderRiskDonutChart(data.risk_distribution || {});
+                renderRecentActivity(data.recent_uploads || []);
+            } catch (e) {
+                console.error('Dashboard load error:', e);
+            }
+        }
+
+        function renderRiskDonutChart(dist) {
+            const ctx = document.getElementById('riskDonutChart').getContext('2d');
+            if (riskDonutChart) riskDonutChart.destroy();
+
+            const values = [
+                dist.critical || 0,
+                dist.high || 0,
+                dist.medium || 0,
+                dist.low || 0,
+                dist.minimal || 0
+            ];
+
+            const total = values.reduce((a, b) => a + b, 0);
+
+            riskDonutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical (80-100)', 'High (65-79)', 'Medium (45-64)', 'Low (25-44)', 'Minimal (0-24)'],
+                    datasets: [{
+                        data: total === 0 ? [1, 1, 1, 1, 1] : values,
+                        backgroundColor: ['#f43f5e', '#f97316', '#eab308', '#10b981', '#06b6d4'],
+                        borderWidth: 2,
+                        borderColor: '#0d1222'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                font: { family: 'Plus Jakarta Sans', size: 11 },
+                                boxWidth: 12
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRecentActivity(list) {
+            const container = document.getElementById('dashboardRecentList');
+            if (!list || list.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center" style="padding: 2rem;">No contracts analyzed yet. Select a preset or upload a contract.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                    ${list.map(item => `
+                        <div style="background: var(--bg-surface-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem 1.1rem; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                                <i class="fas fa-file-contract" style="color: var(--accent-sky); font-size: 1.2rem;"></i>
+                                <div>
+                                    <div style="font-weight: 700; color: #ffffff; font-size: 0.9rem;">${escapeHtml(item.filename)}</div>
+                                    <small style="color: var(--text-muted); font-size: 0.75rem;">${item.date || 'Today'}</small>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <span class="risk-badge ${getRiskBadgeClass(item.risk_score)}">Score: ${item.risk_score}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // =====================================================
+        // FILE UPLOAD & PRESET HANDLERS
+        // =====================================================
+        let selectedFile = null;
+
+        function setupDropZone() {
+            const drop = document.getElementById('dropZone');
+            const fileInp = document.getElementById('fileInput');
+
+            drop.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                drop.classList.add('dragover');
+            });
+
+            drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+
+            drop.addEventListener('drop', (e) => {
+                e.preventDefault();
+                drop.classList.remove('dragover');
+                if (e.dataTransfer.files.length) {
+                    handleFileSelection(e.dataTransfer.files[0]);
+                }
+            });
+
+            fileInp.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleFileSelection(e.target.files[0]);
+                }
+            });
+        }
+
+        function handleFileSelection(file) {
+            selectedFile = file;
+            document.getElementById('fileNameDisplay').innerText = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            document.getElementById('fileStatusPill').style.display = 'flex';
+            document.getElementById('contractTextInput').value = '';
+            showToast(`Document "${file.name}" ready for analysis`, 'info');
+        }
+
+        function removeSelectedFile(e) {
+            e.stopPropagation();
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileStatusPill').style.display = 'none';
+        }
+
+        function loadSamplePreset(key) {
+            const preset = SAMPLE_PRESETS[key];
+            if (!preset) return;
+
+            removeSelectedFile({ stopPropagation: () => {} });
+            document.getElementById('contractTextInput').value = preset.text;
+            document.getElementById('paramContractValue').value = preset.value;
+            document.getElementById('paramTermYears').value = preset.term;
+            document.getElementById('paramIndustry').value = preset.industry;
+
+            document.getElementById('paramContractValue').dispatchEvent(new Event('input'));
+            document.getElementById('contractTextInput').dispatchEvent(new Event('input'));
+
+            switchTab('analyze');
+            showToast(`Loaded "${preset.name}" preset`, 'info');
+            
+            // Auto execute analysis
+            executeContractAnalysis();
+        }
+
+        function clearContractInput() {
+            removeSelectedFile({ stopPropagation: () => {} });
+            document.getElementById('contractTextInput').value = '';
+            document.getElementById('contractTextInput').dispatchEvent(new Event('input'));
+            document.getElementById('resultsPopulatedContainer').style.display = 'none';
+            document.getElementById('resultsEmptyPlaceholder').style.display = 'block';
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    document.getElementById('contractTextInput').value = text;
+                    document.getElementById('contractTextInput').dispatchEvent(new Event('input'));
+                    showToast('Pasted from clipboard', 'success');
+                }
+            } catch (err) {
+                showToast('Clipboard access denied. Please paste manually.', 'warning');
+            }
+        }
+
+        // =====================================================
+        // CORE ANALYSIS EXECUTION
+        // =====================================================
+        async function executeContractAnalysis() {
+            const text = document.getElementById('contractTextInput').value.trim();
+            const contractVal = parseFloat(document.getElementById('paramContractValue').value) || 10000000;
+            const term = parseInt(document.getElementById('paramTermYears').value) || 2;
+            const industry = document.getElementById('paramIndustry').value;
+
+            if (!selectedFile && !text) {
+                showToast('Please upload a file or paste contract text first.', 'warning');
+                return;
+            }
+
+            document.getElementById('resultsEmptyPlaceholder').style.display = 'none';
+            document.getElementById('resultsPopulatedContainer').style.display = 'none';
+            document.getElementById('resultsLoadingSpinner').style.display = 'block';
+            document.getElementById('btnAnalyze').disabled = true;
+
+            try {
+                let responseData = null;
+
+                if (selectedFile) {
+                    const formData = new FormData();
+                    formData.append('file', selectedFile);
+                    formData.append('contract_value', contractVal);
+                    formData.append('term_years', term);
+                    formData.append('industry', industry);
+
+                    const res = await fetch(`${API_BASE}/analyze-file`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    responseData = await res.json();
+                } else {
+                    const res = await fetch(`${API_BASE}/analyze`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contract_text: text,
+                            contract_value: contractVal,
+                            term_years: term,
+                            industry: industry
+                        })
+                    });
+                    responseData = await res.json();
+                }
+
+                if (responseData && responseData.success) {
+                    activeAnalysis = responseData.data;
+                    renderAnalysisResults(activeAnalysis);
+                    showToast('Contract Analysis Complete!', 'success');
+                    loadDashboardMetrics();
+                    loadHistoryData();
+                } else {
+                    showToast(responseData.error || 'Contract analysis failed.', 'danger');
+                    document.getElementById('resultsEmptyPlaceholder').style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Analysis error:', e);
+                showToast('Failed to connect to backend engine.', 'danger');
+                document.getElementById('resultsEmptyPlaceholder').style.display = 'block';
+            } finally {
+                document.getElementById('resultsLoadingSpinner').style.display = 'none';
+                document.getElementById('btnAnalyze').disabled = false;
+            }
+        }
+
+        // =====================================================
+        // RENDER ANALYSIS RESULTS VIEW
+        // =====================================================
+        function renderAnalysisResults(data) {
+            document.getElementById('resultsEmptyPlaceholder').style.display = 'none';
+            document.getElementById('resultsLoadingSpinner').style.display = 'none';
+            document.getElementById('resultsPopulatedContainer').style.display = 'block';
+
+            const risk = data.risk_assessment || {};
+            const score = risk.score || 0;
+            const level = risk.level || 'MEDIUM';
+            const decision = risk.decision || 'REVIEW';
+
+            // Gauge & Score
+            document.getElementById('resScoreNum').innerText = score;
+            const meter = document.getElementById('gaugeMeterCircle');
+            const circumference = 2 * Math.PI * 70; // ~439.8
+            const offset = circumference - (score / 100) * circumference;
+            meter.style.strokeDashoffset = offset;
+            meter.style.stroke = getRiskColor(score);
+
+            // Badges
+            document.getElementById('resContractType').innerText = data.contract_type || 'General Commercial Agreement';
+            const riskBadge = document.getElementById('resRiskBadge');
+            riskBadge.innerText = `${level} RISK (${score}/100)`;
+            riskBadge.className = `risk-badge ${getRiskBadgeClass(score)}`;
+
+            const decBadge = document.getElementById('resDecisionBadge');
+            decBadge.innerText = decision;
+
+            document.getElementById('resActionDirective').innerText = risk.action || 'Careful legal review recommended.';
+
+            // 4-Vector Breakdown
+            document.getElementById('resLegalRisk').innerText = `${risk.legal_risk || 0}%`;
+            document.getElementById('resFinancialRisk').innerText = `${risk.financial_risk || 0}%`;
+            document.getElementById('resComplianceRisk').innerText = `${risk.compliance_risk || 0}%`;
+            document.getElementById('resOperationalRisk').innerText = `${risk.operational_risk || 0}%`;
+
+            // Summary
+            document.getElementById('resExecutiveSummary').innerText = data.summary || 'Comprehensive contract scan completed.';
+            const aiBox = document.getElementById('resAiInsightBox');
+            if (data.ai_explanation) {
+                aiBox.style.display = 'block';
+                document.getElementById('resAiInsightText').innerText = data.ai_explanation;
+            } else {
+                aiBox.style.display = 'none';
+            }
+
+            // Compliance Grid
+            renderComplianceGrid(data.compliance || {});
+
+            // Clause Matrix
+            renderClauseMatrix(data.clause_analysis || {});
+
+            // Financial Simulation
+            renderFinancialSimulation(data.financial_analysis || {}, data.clause_analysis || {});
+
+            // Recommendations
+            renderRecommendations(data.recommendations || [], data.risk_contributors || []);
+
+            // Setup Contextual Analysis Chat
+            initAnalysisChatSession(data);
+        }
+
+        function renderComplianceGrid(compliance) {
+            const container = document.getElementById('complianceGridContainer');
+            const score = compliance.overall_score || 0;
+            document.getElementById('resOverallCompliance').innerText = `Overall Alignment: ${score}%`;
+
+            const standards = compliance.standards || [];
+            if (!standards.length) {
+                container.innerHTML = '<p class="text-muted">No statutory regulations applicable.</p>';
+                return;
+            }
+
+            container.innerHTML = standards.map(std => {
+                const color = std.score >= 70 ? '#10b981' : (std.score >= 40 ? '#eab308' : '#f43f5e');
+                const badgeClass = std.score >= 70 ? 'badge-low' : (std.score >= 40 ? 'badge-medium' : 'badge-critical');
+                return `
+                    <div class="compliance-item-card">
+                        <div>
+                            <div class="compliance-header">
+                                <span class="compliance-name">${std.standard}</span>
+                                <span class="risk-badge ${badgeClass}" style="font-size: 0.72rem; padding: 0.2rem 0.6rem;">${std.status}</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill-bar" style="width: ${std.score}%; background: ${color};"></div>
+                            </div>
+                        </div>
+                        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.4rem;">
+                            Match confidence: ${std.score}%
+                        </small>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        let currentClauses = { present: [], missing: [] };
+
+        function renderClauseMatrix(clauseData) {
+            currentClauses.present = clauseData.present_list || [];
+            currentClauses.missing = clauseData.missing_list || [];
+
+            document.getElementById('resClausePresentCount').innerText = `${clauseData.present || currentClauses.present.length} Present`;
+            document.getElementById('resClauseMissingCount').innerText = `${clauseData.missing || currentClauses.missing.length} Missing`;
+
+            filterClauseMatrix('all', document.querySelector('.filter-chip.active') || document.querySelector('.filter-chip'));
+        }
+
+        function filterClauseMatrix(filterType, btnElem) {
+            document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+            if (btnElem) btnElem.classList.add('active');
+
+            const container = document.getElementById('clauseListContainer');
+            let items = [];
+
+            if (filterType === 'present') {
+                items = currentClauses.present.map(c => ({ name: c, present: true }));
+            } else if (filterType === 'missing') {
+                items = currentClauses.missing.map(c => ({ name: c, present: false }));
+            } else {
+                items = [
+                    ...currentClauses.present.map(c => ({ name: c, present: true })),
+                    ...currentClauses.missing.map(c => ({ name: c, present: false }))
+                ];
+            }
+
+            renderClauseRows(items);
+        }
+
+        function searchClauses(query) {
+            const q = query.toLowerCase().trim();
+            const all = [
+                ...currentClauses.present.map(c => ({ name: c, present: true })),
+                ...currentClauses.missing.map(c => ({ name: c, present: false }))
+            ];
+
+            const filtered = all.filter(item => item.name.toLowerCase().includes(q));
+            renderClauseRows(filtered);
+        }
+
+        function renderClauseRows(items) {
+            const container = document.getElementById('clauseListContainer');
+            if (!items.length) {
+                container.innerHTML = '<p class="text-muted" style="grid-column: span 2; padding: 1rem;">No matching clauses found.</p>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div class="clause-row-item ${item.present ? 'present' : 'missing'}">
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                        <i class="fas ${item.present ? 'fa-check-circle text-success' : 'fa-triangle-exclamation text-danger'}"></i>
+                        <span class="clause-row-name">${item.name}</span>
+                    </div>
+                    <span class="risk-badge ${item.present ? 'badge-low' : 'badge-critical'}" style="font-size: 0.7rem; padding: 0.2rem 0.6rem;">
+                        ${item.present ? 'Present' : 'Missing'}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function renderFinancialSimulation(fin, clauses) {
+            const totalRev = fin.total_revenue || 0;
+            const gross = fin.expected_profit || 0;
+            const exp = fin.risk_exposure || 0;
+            const net = fin.risk_adjusted_profit || 0;
+            const roi = fin.roi_percentage || 0;
+
+            document.getElementById('finTotalValue').innerText = formatInrCurrency(totalRev);
+            document.getElementById('finGrossProfit').innerText = formatInrCurrency(gross);
+            document.getElementById('finRiskExposure').innerText = formatInrCurrency(exp);
+            document.getElementById('finNetProfit').innerText = formatInrCurrency(net);
+            document.getElementById('resFinRoiPill').innerText = `Net ROI: ${roi}%`;
+
+            document.getElementById('simMarginSlider').value = 30;
+            document.getElementById('simMarginDisplay').innerText = '30% Default Margin';
+        }
+
+        function recalculateSimulation(marginPercent) {
+            if (!activeAnalysis) return;
+            const fin = activeAnalysis.financial_analysis || {};
+            const totalRev = fin.total_revenue || (fin.contract_value * fin.term_years);
+            const riskScore = activeAnalysis.risk_assessment?.score || 50;
+            const missingClauses = activeAnalysis.clause_analysis?.missing || 5;
+            const totalClauses = activeAnalysis.clause_analysis?.total || 20;
+
+            const margin = parseFloat(marginPercent) / 100;
+            document.getElementById('simMarginDisplay').innerText = `${marginPercent}% Profit Margin`;
+
+            const gross = totalRev * margin;
+            const missingRatio = missingClauses / Math.max(totalClauses, 1);
+            const riskExposure = missingRatio * fin.contract_value * 0.03 * (riskScore / 50);
+            const net = Math.max(0, gross - riskExposure);
+            const roi = totalRev > 0 ? ((net / totalRev) * 100).toFixed(1) : 0;
+
+            document.getElementById('finGrossProfit').innerText = formatInrCurrency(gross);
+            document.getElementById('finRiskExposure').innerText = formatInrCurrency(riskExposure);
+            document.getElementById('finNetProfit').innerText = formatInrCurrency(net);
+            document.getElementById('resFinRoiPill').innerText = `Net ROI: ${roi}%`;
+        }
+
+        function renderRecommendations(recs, risks) {
+            const container = document.getElementById('recommendationsContainer');
+            const items = [...recs];
+
+            if (!items.length) {
+                container.innerHTML = '<p class="text-muted">Standard due diligence recommended before execution.</p>';
+                return;
+            }
+
+            container.innerHTML = items.map((rec, idx) => `
+                <div style="background: var(--bg-surface-1); border-left: 4px solid var(--accent-primary); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 0.9rem 1.1rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                    <div class="mono" style="font-weight: 700; color: var(--accent-sky); font-size: 0.95rem;">${idx + 1}.</div>
+                    <div style="color: #e2e8f0; font-size: 0.9rem; line-height: 1.5;">${rec}</div>
+                </div>
+            `).join('');
+        }
+
+        // =====================================================
+        // CHATBOT IMPLEMENTATIONS (MAIN & CONTEXTUAL)
+        // =====================================================
+        function initAnalysisChatSession(data) {
+            analysisSessionId = 'analysis_' + Date.now();
+            const stream = document.getElementById('analysisChatStream');
+            stream.innerHTML = `
+                <div class="msg-bubble-wrap ai">
+                    <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                    <div class="msg-bubble">
+                        🤖 Contextual assistant ready for <strong>${data.contract_type || 'this contract'}</strong> (Risk: ${data.risk_assessment?.score}/100). Ask any question about clauses, compliance, or financial calculations!
+                    </div>
+                </div>
+            `;
+        }
+
+        async function submitAnalysisChat() {
+            const input = document.getElementById('analysisChatInput');
+            const q = input.value.trim();
+            if (!q) return;
+
+            input.value = '';
+            await sendAnalysisQuestion(q);
+        }
+
+        async function sendAnalysisQuestion(q) {
+            if (!activeAnalysis) {
+                showToast('No active contract analysis.', 'warning');
+                return;
+            }
+
+            const stream = document.getElementById('analysisChatStream');
+            stream.innerHTML += `
+                <div class="msg-bubble-wrap user">
+                    <div class="msg-avatar user"><i class="fas fa-user"></i></div>
+                    <div class="msg-bubble">${escapeHtml(q)}</div>
+                </div>
+                <div class="msg-bubble-wrap ai" id="analysisTypingMsg">
+                    <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                    <div class="msg-bubble"><i class="fas fa-circle-notch fa-spin"></i> EDIE is reasoning...</div>
+                </div>
+            `;
+            stream.scrollTop = stream.scrollHeight;
+
+            try {
+                const formData = new FormData();
+                formData.append('question', q);
+                formData.append('analysis_data', JSON.stringify(activeAnalysis));
+                if (analysisSessionId) formData.append('session_id', analysisSessionId);
+
+                const res = await fetch(`${API_BASE}/ai/ask-analysis`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                const typing = document.getElementById('analysisTypingMsg');
+                if (typing) typing.remove();
+
+                const answer = data.success ? data.answer : (data.error || 'Unable to generate analysis response.');
+                stream.innerHTML += `
+                    <div class="msg-bubble-wrap ai">
+                        <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                        <div class="msg-bubble">${escapeHtml(answer)}</div>
+                    </div>
+                `;
+                stream.scrollTop = stream.scrollHeight;
+            } catch (e) {
+                const typing = document.getElementById('analysisTypingMsg');
+                if (typing) typing.remove();
+                stream.innerHTML += `
+                    <div class="msg-bubble-wrap ai">
+                        <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                        <div class="msg-bubble text-danger">⚠️ Connection error. Please ensure the backend is running.</div>
+                    </div>
+                `;
+            }
+        }
+
+        function clearAnalysisChat() {
+            if (activeAnalysis) initAnalysisChatSession(activeAnalysis);
+        }
+
+        // Main AI Assistant Chat
+        async function submitMainChat() {
+            const input = document.getElementById('mainChatInput');
+            const q = input.value.trim();
+            if (!q) return;
+
+            input.value = '';
+            await sendMainChatQuestion(q);
+        }
+
+        async function sendMainChatQuestion(q) {
+            const stream = document.getElementById('mainChatStream');
+            stream.innerHTML += `
+                <div class="msg-bubble-wrap user">
+                    <div class="msg-avatar user"><i class="fas fa-user"></i></div>
+                    <div class="msg-bubble">${escapeHtml(q)}</div>
+                </div>
+                <div class="msg-bubble-wrap ai" id="mainTypingMsg">
+                    <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                    <div class="msg-bubble"><i class="fas fa-circle-notch fa-spin"></i> Consulting legal knowledge base...</div>
+                </div>
+            `;
+            stream.scrollTop = stream.scrollHeight;
+
+            try {
+                const formData = new FormData();
+                formData.append('question', q);
+                if (mainSessionId) formData.append('session_id', mainSessionId);
+
+                const res = await fetch(`${API_BASE}/ai/chat`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                const typing = document.getElementById('mainTypingMsg');
+                if (typing) typing.remove();
+
+                const answer = data.success ? data.answer : (data.error || 'Could not retrieve answer.');
+                stream.innerHTML += `
+                    <div class="msg-bubble-wrap ai">
+                        <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                        <div class="msg-bubble">${escapeHtml(answer)}</div>
+                    </div>
+                `;
+                stream.scrollTop = stream.scrollHeight;
+            } catch (e) {
+                const typing = document.getElementById('mainTypingMsg');
+                if (typing) typing.remove();
+                stream.innerHTML += `
+                    <div class="msg-bubble-wrap ai">
+                        <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                        <div class="msg-bubble text-danger">⚠️ Connection error. Backend server unreachable.</div>
+                    </div>
+                `;
+            }
+        }
+
+        function clearMainChat() {
+            mainSessionId = 'session_' + Date.now();
+            const stream = document.getElementById('mainChatStream');
+            stream.innerHTML = `
+                <div class="msg-bubble-wrap ai">
+                    <div class="msg-avatar ai"><i class="fas fa-robot"></i></div>
+                    <div class="msg-bubble">
+                        👋 Session refreshed! Ask any question about Indian statutory laws, DPDP Act penalties, or contract clauses.
+                    </div>
+                </div>
+            `;
+            showToast('New chat session started', 'info');
+        }
+
+        // =====================================================
+        // KNOWLEDGE BASE DATASET EXPLORER
+        // =====================================================
+        async function loadKnowledgeBaseData() {
+            try {
+                const res = await fetch(`${API_BASE}/knowledge-base/data`);
+                const data = await res.json();
+                if (data.success) {
+                    kbDataCache = data.data;
+                    renderKnowledgeBaseCards(data.files || [], data.data || {});
+                    document.getElementById('kbDatasetBadge').innerText = (data.files || []).length;
+                    document.getElementById('kpiKbCount').innerText = (data.files || []).length;
+                }
+            } catch (e) {
+                console.error('KB Data error:', e);
+            }
+        }
+
+        function renderKnowledgeBaseCards(files, dataset) {
+            const grid = document.getElementById('kbDatasetCardsGrid');
+            if (!files.length) {
+                grid.innerHTML = '<p class="text-muted" style="grid-column: span 12;">No knowledge base files loaded.</p>';
+                return;
+            }
+
+            grid.innerHTML = files.map(filename => {
+                const content = dataset[filename] || {};
+                const keysCount = Array.isArray(content) ? content.length : Object.keys(content).length;
+                const title = filename.replace('.json', '').replace(/_/g, ' ').toUpperCase();
+
+                return `
+                    <div class="kpi-card" style="grid-column: span 4; cursor: pointer;" onclick="inspectKbDataset('${filename}')">
+                        <div class="kpi-card-header">
+                            <span><i class="fas fa-file-code text-info"></i> ${title}</span>
+                            <div class="kpi-icon-pill"><i class="fas fa-eye"></i></div>
+                        </div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #ffffff; margin: 0.5rem 0;">
+                            ${keysCount} Entries / Rules
+                        </div>
+                        <div class="kpi-footer" style="color: var(--accent-sky); font-weight: 600;">
+                            Click to inspect JSON rules →
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function inspectKbDataset(filename) {
+            if (!kbDataCache || !kbDataCache[filename]) return;
+            const viewer = document.getElementById('kbViewerCard');
+            const title = document.getElementById('kbViewerTitle');
+            const content = document.getElementById('kbViewerContent');
+
+            title.innerHTML = `<i class="fas fa-code text-info"></i> Dataset: ${filename}`;
+            content.innerText = JSON.stringify(kbDataCache[filename], null, 2);
+            viewer.style.display = 'block';
+            viewer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function filterKnowledgeBase(q) {
+            const query = q.toLowerCase().trim();
+            if (!kbDataCache) return;
+
+            const matchingFiles = Object.keys(kbDataCache).filter(fn => {
+                if (fn.toLowerCase().includes(query)) return true;
+                const str = JSON.stringify(kbDataCache[fn]).toLowerCase();
+                return str.includes(query);
+            });
+
+            renderKnowledgeBaseCards(matchingFiles, kbDataCache);
+        }
+
+        // =====================================================
+        // AUDIT ARCHIVE / HISTORY
+        // =====================================================
+        async function loadHistoryData() {
+            try {
+                const res = await fetch(`${API_BASE}/history`);
+                const data = await res.json();
+                if (data.success) {
+                    renderHistoryTable(data.history || []);
+                    document.getElementById('historyBadge').innerText = (data.history || []).length;
+                }
+            } catch (e) {
+                console.error('History load error:', e);
+            }
+        }
+
+        function renderHistoryTable(list) {
+            const container = document.getElementById('historyTableContainer');
+            if (!list.length) {
+                container.innerHTML = '<p class="text-muted text-center" style="padding: 3rem;">No historical analyses recorded yet.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">
+                                <th style="padding: 0.75rem 1rem;">#</th>
+                                <th style="padding: 0.75rem 1rem;">Document / Title</th>
+                                <th style="padding: 0.75rem 1rem;">Risk Score</th>
+                                <th style="padding: 0.75rem 1rem;">Decision</th>
+                                <th style="padding: 0.75rem 1rem;">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${list.map((item, idx) => `
+                                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04); transition: background 0.2s;">
+                                    <td style="padding: 1rem;" class="mono text-muted">${idx + 1}</td>
+                                    <td style="padding: 1rem; font-weight: 700; color: #ffffff;">
+                                        <i class="fas fa-file-contract text-info" style="margin-right: 0.5rem;"></i>
+                                        ${escapeHtml(item.filename || 'Direct Text Input')}
+                                    </td>
+                                    <td style="padding: 1rem;">
+                                        <span class="risk-badge ${getRiskBadgeClass(item.risk_assessment?.score || 0)}">
+                                            ${item.risk_assessment?.score || 0} / 100
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1rem;">
+                                        <span class="decision-badge" style="font-size: 0.75rem;">${item.risk_assessment?.decision || 'REVIEW'}</span>
+                                    </td>
+                                    <td style="padding: 1rem; color: var(--text-muted); font-size: 0.8rem;">
+                                        ${new Date(item.created_at || Date.now()).toLocaleString()}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function clearAnalysisHistory() {
+            if (!confirm('Are you sure you want to clear the analysis history?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/clear-history`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('History archive cleared', 'success');
+                    loadHistoryData();
+                    loadDashboardMetrics();
+                }
+            } catch (e) {
+                showToast('Failed to clear history', 'danger');
+            }
+        }
+
+        // =====================================================
+        // REPORTS & EXPORTS
+        // =====================================================
+        async function downloadDocxReport() {
+            if (!activeAnalysis) {
+                showToast('No active contract analysis to export.', 'warning');
+                return;
+            }
+
+            try {
+                showToast('Generating official DOCX report...', 'info');
+                const formData = new FormData();
+                formData.append('analysis_data', JSON.stringify(activeAnalysis));
+
+                const res = await fetch(`${API_BASE}/generate-report`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    window.open(`${API_BASE}/download-report/${result.filename}`, '_blank');
+                    showToast('Report generated and downloaded!', 'success');
+                } else {
+                    showToast(result.error || 'Failed to generate report', 'danger');
+                }
+            } catch (e) {
+                showToast('Report generation error: ' + e.message, 'danger');
+            }
+        }
+
+        function copyAnalysisSummary() {
+            if (!activeAnalysis) return;
+            const risk = activeAnalysis.risk_assessment || {};
+            const text = `EDIE Enterprise Contract Risk Briefing:
+• Contract Type: ${activeAnalysis.contract_type}
+• Risk Score: ${risk.score}/100 (${risk.level})
+• Decision: ${risk.decision}
+• Action: ${risk.action}
+• Summary: ${activeAnalysis.summary}
+• ROI: ${activeAnalysis.financial_analysis?.roi_percentage}%`;
+
+            navigator.clipboard.writeText(text);
+            showToast('Executive summary copied to clipboard!', 'success');
+        }
+
+        function exportFullSessionData() {
+            const backup = {
+                exported_at: new Date().toISOString(),
+                active_analysis: activeAnalysis,
+                knowledge_base_files: kbDataCache ? Object.keys(kbDataCache) : []
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `EDIE_Session_Backup_${Date.now()}.json`);
+            dlAnchor.click();
+            showToast('Session data exported successfully', 'success');
+        }
+
+        // =====================================================
+        // UTILITIES & HELPERS
+        // =====================================================
+        function formatInrCurrency(amount) {
+            const num = parseFloat(amount) || 0;
+            if (num >= 10000000) {
+                return `₹${(num / 10000000).toFixed(2)} Cr`;
+            } else if (num >= 100000) {
+                return `₹${(num / 100000).toFixed(2)} L`;
+            } else {
+                return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+            }
+        }
+
+        function getRiskBadgeClass(score) {
+            if (score >= 80) return 'badge-critical';
+            if (score >= 65) return 'badge-high';
+            if (score >= 45) return 'badge-medium';
+            if (score >= 25) return 'badge-low';
+            return 'badge-minimal';
+        }
+
+        function getRiskColor(score) {
+            if (score >= 80) return '#f43f5e';
+            if (score >= 65) return '#f97316';
+            if (score >= 45) return '#eab308';
+            if (score >= 25) return '#10b981';
+            return '#06b6d4';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(msg, type = 'info') {
+            const root = document.getElementById('toastRoot');
+            const toast = document.createElement('div');
+            toast.className = 'toast-item';
+
+            let icon = 'fa-info-circle text-info';
+            if (type === 'success') icon = 'fa-check-circle text-success';
+            if (type === 'danger') icon = 'fa-triangle-exclamation text-danger';
+            if (type === 'warning') icon = 'fa-circle-exclamation text-warning';
+
+            toast.innerHTML = `<i class="fas ${icon}"></i> <span>${msg}</span>`;
+            root.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>

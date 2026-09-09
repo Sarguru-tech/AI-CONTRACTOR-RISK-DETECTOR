@@ -24,9 +24,17 @@ if sys.platform == "win32":
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
-# ============================================
-# CONFIGURATION
-# ============================================
+# Load .env if present
+if os.path.exists(".env"):
+    try:
+        with open(".env", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ[k.strip()] = v.strip().strip('"').strip("'")
+    except Exception:
+        pass
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 AI_AVAILABLE = bool(OPENROUTER_API_KEY)
@@ -758,32 +766,89 @@ async def analyze_file(file: UploadFile = File(...), contract_value: float = For
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+def get_rag_fallback_answer(question: str) -> str:
+    q_lower = question.lower().strip()
+    
+    # 1. Search RAG documents
+    rag_docs = kb.data.get("rag_documents.json", {}).get("documents", [])
+    matched_docs = []
+    for doc in rag_docs:
+        keywords = doc.get("keywords", [])
+        if any(kw.lower() in q_lower for kw in keywords) or doc.get("source", "").lower() in q_lower:
+            matched_docs.append(f"📌 {doc.get('source')} - {doc.get('section')}:\n{doc.get('content')}")
+            
+    if matched_docs:
+        return "\n\n".join(matched_docs[:2])
+        
+    # 2. Search Legal Knowledge Base Laws
+    laws = kb.data.get("legal_knowledge_base.json", {}).get("laws", [])
+    for law in laws:
+        law_name = law.get("law_name", "").lower()
+        law_id = law.get("law_id", "").lower()
+        if law_id in q_lower or any(word in q_lower for word in law_name.split() if len(word) > 3):
+            pen = law.get("penalty", {})
+            clauses = ", ".join(law.get("mandatory_clauses", []))
+            return f"⚖️ {law.get('law_name')} ({law.get('category')} - {law.get('country')})\n\n• Mandatory Clauses: {clauses}\n• Maximum Penalty: ₹{pen.get('amount', 'Substantial')} ({pen.get('description', '')})\n• Risk Impact: {law.get('risk_weight', 5)}/10"
+
+    # 3. Search Glossary Terms
+    glossary = kb.data.get("glossary.json", {}).get("terms", [])
+    for item in glossary:
+        t_name = item.get("term", "").lower()
+        if t_name in q_lower or any(rt.lower() in q_lower for rt in item.get("related_terms", [])):
+            res = f"📖 {item.get('term')}\n\n• Definition: {item.get('definition')}\n• Legal Effect: {item.get('legal_effect')}"
+            if item.get("example"):
+                res += f"\n• Example: {item.get('example')}"
+            return res
+
+    # 4. Search Risk Patterns
+    patterns = kb.data.get("risk_patterns.json", {}).get("patterns", [])
+    for pat in patterns:
+        p_name = pat.get("name", "").lower()
+        if p_name in q_lower or any(kw.lower() in q_lower for kw in pat.get("keywords", [])):
+            return f"⚠️ Risk Pattern: {pat.get('name')} (Severity: {pat.get('severity')})\n\n• Impact: {pat.get('description', 'Increases contractual liability.')}\n• Suggested Remedy: {pat.get('suggestion')}"
+
+    # 5. Standard fallback responses
+    if 'dpdp' in q_lower:
+        return "The DPDP Act 2023 is India's data protection law. Penalties reach up to ₹250 crore for breaches and non-compliance. Mandatory requirements include consent mechanisms, breach notification, data retention limits, and grievance redressal."
+    elif 'msme' in q_lower:
+        return "Under the MSME Act 2006, buyers must pay MSME suppliers within 45 days. If delayed, compound interest at 3x the RBI bank rate (approx 21% p.a.) with monthly rests applies."
+    elif 'iso' in q_lower or '27001' in q_lower:
+        return "ISO 27001:2022 sets the global standard for Information Security Management Systems (ISMS), comprising 93 controls across organizational, people, physical, and technological themes."
+    elif 'employment' in q_lower or 'employee' in q_lower:
+        return "Employment contracts should clearly outline position/duties, gross salary, probation period, notice period, confidentiality, IP assignment, and Indian governing law."
+    elif 'hey' in q_lower or 'hi' in q_lower or 'hello' in q_lower:
+        return "Hey there! 👋 I'm EDIE, your Contract Risk & Compliance Intelligence Assistant. I can analyze contracts, evaluate missing clauses, verify DPDP/MSME/ISO compliance, and answer legal questions from the knowledge base!"
+    else:
+        return "I'm EDIE, your contract intelligence assistant. You can ask me about Indian statutory laws (DPDP Act ₹250 Cr penalties, MSME 45-day payment rule, GST/TDS), contract clauses (Limitation of Liability, Indemnity, Non-Compete), or test presets in the Analyze tab!"
+
+@app.post("/set-api-key")
+async def set_api_key(api_key: str = Form(...)):
+    global OPENROUTER_API_KEY, AI_AVAILABLE
+    OPENROUTER_API_KEY = api_key.strip()
+    AI_AVAILABLE = bool(OPENROUTER_API_KEY)
+    
+    # Save to .env for persistence
+    try:
+        with open(".env", "w", encoding="utf-8") as f:
+            f.write(f"OPENROUTER_API_KEY={OPENROUTER_API_KEY}\n")
+    except Exception as e:
+        logger.warning(f"Could not write .env: {e}")
+        
+    return {"success": True, "ai_available": AI_AVAILABLE}
+
 @app.post("/ai/chat")
 async def ai_chat(question: str = Form(...), session_id: str = Form(None)):
-    if not OPENROUTER_API_KEY:
-        return {"success": False, "error": "OpenRouter API key not configured."}
-    
     if not session_id:
         session_id = str(uuid.uuid4())
     if session_id not in chat_sessions:
         chat_sessions[session_id] = []
     
-    answer = call_ai(question, max_tokens=600, temperature=0.7, conversation_history=chat_sessions[session_id])
+    answer = None
+    if OPENROUTER_API_KEY:
+        answer = call_ai(question, max_tokens=600, temperature=0.7, conversation_history=chat_sessions[session_id])
     
     if not answer:
-        q_lower = question.lower()
-        if 'dpdp' in q_lower:
-            answer = "The DPDP Act 2023 is India's data protection law. Penalties up to ₹250 crore for violations. Requirements include consent, breach notification within 48 hours, and giving individuals rights to access, correct, and erase their data."
-        elif 'msme' in q_lower:
-            answer = "Under MSME Act 2006, buyers must pay MSME suppliers within 45 days. If delayed, compound interest at three times bank rate (approx 21% p.a.) with monthly rests applies."
-        elif 'iso' in q_lower or '27001' in q_lower:
-            answer = "ISO 27001:2022 has 93 controls across 4 domains. Key requirements include risk assessment, security policy, access control, incident management, and business continuity."
-        elif 'employment' in q_lower or 'employee' in q_lower:
-            answer = "Employment contracts should include: job title and duties, salary and benefits, probation period (3-6 months), notice period for termination, confidentiality clause, IP ownership, leave policy. Standard employment contracts are generally low risk."
-        elif 'hey' in q_lower or 'hi' in q_lower or 'hello' in q_lower:
-            answer = "Hey there! 👋 I'm EDIE, your contract and compliance AI assistant. I analyze contracts based on their specific type - Employment, NDA, Software, Service, Vendor, etc. Paste any contract and I'll tell you the risk score and missing clauses!"
-        else:
-            answer = "I'm here to help! Ask me about DPDP Act (₹250 crore penalties), MSME Act (45-day payment rule), ISO 27001, employment contracts, or any contract clause like Liability caps or Data Protection. Paste a contract in the Analyze tab to see detailed analysis!"
+        answer = get_rag_fallback_answer(question)
     
     chat_sessions[session_id].append({"role": "user", "content": question})
     chat_sessions[session_id].append({"role": "assistant", "content": answer})
@@ -794,9 +859,6 @@ async def ai_chat(question: str = Form(...), session_id: str = Form(None)):
 
 @app.post("/ai/ask-analysis")
 async def ai_ask_analysis(question: str = Form(...), analysis_data: str = Form(...), session_id: str = Form(None)):
-    if not OPENROUTER_API_KEY:
-        return {"success": False, "error": "OpenRouter API key not configured."}
-    
     try:
         data = json.loads(analysis_data)
         
@@ -805,7 +867,9 @@ async def ai_ask_analysis(question: str = Form(...), analysis_data: str = Form(.
         if session_id not in analysis_sessions:
             analysis_sessions[session_id] = []
         
-        answer = call_ai_analysis(question, data, analysis_sessions[session_id])
+        answer = None
+        if OPENROUTER_API_KEY:
+            answer = call_ai_analysis(question, data, analysis_sessions[session_id])
         
         if not answer:
             q_lower = question.lower()
@@ -819,8 +883,8 @@ async def ai_ask_analysis(question: str = Form(...), analysis_data: str = Form(.
                 answer = f"The Data Protection clause ensures compliance with India's DPDP Act 2023. Penalties can reach ₹250 crore. Your {contract_type} is {'missing' if 'Data Protection' in clauses.get('missing_list', []) else 'present'} this clause."
             elif 'confidentiality' in q_lower:
                 answer = "Confidentiality clauses protect trade secrets and sensitive information. They should define what's confidential, exclude public info, and survive termination."
-            elif 'risk score' in q_lower:
-                answer = f"The risk score of {risk_score}/100 is calculated based on mandatory clauses present, detected risk patterns, and compliance score. For a {contract_type}, this indicates {risk_level.lower()} risk."
+            elif 'risk score' in q_lower or 'score' in q_lower:
+                answer = f"The risk score of {risk_score}/100 is calculated based on mandatory clauses present ({clauses.get('mandatory_present', 0)}/{clauses.get('mandatory_total', 0)}), detected risk patterns, and compliance scores. For a {contract_type}, this indicates {risk_level.lower()} risk."
             elif 'compliance' in q_lower:
                 comp = data.get('compliance', {})
                 answer = f"The compliance score of {comp.get('overall_score', 0)}% checks only laws relevant to {contract_type}s. For example, MSME is checked only for vendor/supplier contracts, DPDP only when data is involved."

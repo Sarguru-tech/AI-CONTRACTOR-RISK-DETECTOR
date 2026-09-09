@@ -1236,7 +1236,7 @@
                     <div class="status-dot"></div>
                     <span id="backendStatusText">Backend Online</span>
                 </div>
-                <div class="status-pill engine-pill" id="aiStatusPill">
+                <div class="status-pill engine-pill" id="aiStatusPill" onclick="openApiKeyModal()" style="cursor: pointer;" title="Click to view or set OpenRouter API Key">
                     <i class="fas fa-microchip"></i>
                     <span id="aiStatusText">AI Initializing...</span>
                 </div>
@@ -2926,6 +2926,78 @@ This Non-Disclosure Agreement ("Agreement") is entered into between Zenith Bio L
                 setTimeout(() => toast.remove(), 300);
             }, 3500);
         }
+
+        // =====================================================
+        // OPENROUTER API KEY MODAL
+        // =====================================================
+        function openApiKeyModal() {
+            document.getElementById('apiKeyModal').style.display = 'flex';
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').style.display = 'none';
+        }
+
+        async function saveApiKey() {
+            const key = document.getElementById('inputOpenRouterKey').value.trim();
+            if (!key) {
+                showToast('Please enter an OpenRouter API key or cancel.', 'warning');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('api_key', key);
+                const res = await fetch(`${API_BASE}/set-api-key`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('API Key saved successfully! AI is now active.', 'success');
+                    closeApiKeyModal();
+                    await checkSystemHealth();
+                } else {
+                    showToast('Failed to save API key.', 'danger');
+                }
+            } catch (err) {
+                showToast('Error saving key to backend.', 'danger');
+            }
+        }
     </script>
+
+    <!-- API Key Configuration Modal -->
+    <div id="apiKeyModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 10000; align-items: center; justify-content: center; padding: 1.5rem;">
+        <div style="background: var(--bg-surface-2); border: 1px solid var(--accent-primary); border-radius: var(--radius-lg); max-width: 540px; width: 100%; padding: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas fa-key" style="color: var(--accent-sky); font-size: 1.4rem;"></i>
+                    <h3 style="margin: 0; font-size: 1.25rem; color: #fff;">OpenRouter API Configuration</h3>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="closeApiKeyModal()" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1.25rem;">
+                EDIE operates out-of-the-box with its built-in rule engine and local knowledge base. To unlock external generative AI features (Gemma 2 / LLM explanation), enter your OpenRouter key below:
+            </p>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">
+                    OpenRouter API Key
+                </label>
+                <input type="password" id="inputOpenRouterKey" placeholder="sk-or-v1-..." class="form-control" style="width: 100%; background: var(--bg-surface-1); border: 1px solid var(--border-subtle); color: #fff; padding: 0.75rem 1rem; border-radius: var(--radius-md); font-family: monospace; font-size: 0.9rem;">
+                <small style="display: block; margin-top: 0.5rem; color: var(--text-muted); font-size: 0.75rem;">
+                    Get a free key from <a href="https://openrouter.ai/keys" target="_blank" style="color: var(--accent-sky); text-decoration: underline;">openrouter.ai/keys</a>
+                </small>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button class="btn btn-secondary" onclick="closeApiKeyModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveApiKey()"><i class="fas fa-save"></i> Save & Enable AI</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

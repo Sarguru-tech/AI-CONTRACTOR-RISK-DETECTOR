@@ -2030,7 +2030,7 @@ This Non-Disclosure Agreement ("Agreement") is entered into between Zenith Bio L
                 const aiText = document.getElementById('aiStatusText');
 
                 if (data.ai_available) {
-                    aiText.innerText = 'AI Ready (OpenRouter / Gemma)';
+                    aiText.innerText = `AI Ready (${data.ai_provider || 'Active'})`;
                     aiPill.style.color = '#86efac';
                     aiPill.style.borderColor = '#22c55e';
                 } else {

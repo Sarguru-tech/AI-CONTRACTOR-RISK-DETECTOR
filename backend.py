@@ -36,8 +36,15 @@ if os.path.exists(".env"):
     except Exception:
         pass
 
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-AI_AVAILABLE = bool(OPENROUTER_API_KEY)
+ACTIVE_AI_KEY = GEMINI_API_KEY or OPENROUTER_API_KEY
+AI_AVAILABLE = bool(ACTIVE_AI_KEY)
+
+def is_gemini_key(key: str) -> bool:
+    if not key:
+        return False
+    return not key.startswith("sk-or-")
 
 try:
     import fitz
@@ -55,59 +62,97 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ============================================
-# AI FUNCTIONS
+# AI FUNCTIONS (Dual Gemini + OpenRouter)
 # ============================================
 
-def call_ai(prompt: str, max_tokens: int = 800, temperature: float = 0.7, 
-            system_prompt: str = None, conversation_history: List = None) -> Optional[str]:
-    if not OPENROUTER_API_KEY:
+def call_gemini(prompt: str, max_tokens: int = 800, temperature: float = 0.7,
+                system_prompt: str = None, conversation_history: List = None, key: str = None) -> Optional[str]:
+    api_key = key or ACTIVE_AI_KEY
+    if not api_key:
         return None
+        
+    contents = []
+    if conversation_history:
+        for msg in conversation_history[-8:]:
+            role = "model" if msg.get("role") == "assistant" else "user"
+            contents.append({"role": role, "parts": [{"text": msg.get("content", "")}]})
+    contents.append({"role": "user", "parts": [{"text": prompt}]})
     
+    payload = {
+        "contents": contents,
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": temperature
+        }
+    }
+    if system_prompt:
+        payload["systemInstruction"] = {
+            "parts": [{"text": system_prompt}]
+        }
+        
+    candidate_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-latest"]
+    for model_name in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            r = requests.post(url, json=payload, timeout=20)
+            if r.status_code == 200:
+                candidates = r.json().get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts:
+                        return parts[0].get("text")
+            else:
+                logger.warning(f"Gemini {model_name} status {r.status_code}, trying fallback...")
+        except Exception as e:
+            logger.warning(f"Gemini {model_name} error: {e}")
+    return None
+
+def call_openrouter(prompt: str, max_tokens: int = 800, temperature: float = 0.7,
+                    system_prompt: str = None, conversation_history: List = None, key: str = None) -> Optional[str]:
+    api_key = key or ACTIVE_AI_KEY
+    if not api_key:
+        return None
     try:
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         else:
             messages.append({"role": "system", "content": "You are EDIE, a friendly, knowledgeable AI assistant specializing in Indian laws, contract clauses, and compliance. Be conversational and helpful."})
-        
         if conversation_history:
             for msg in conversation_history[-8:]:
                 messages.append(msg)
-        
         messages.append({"role": "user", "content": prompt})
         
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "google/gemma-2-9b-it:free",
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": temperature
-            },
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": "google/gemma-2-9b-it:free", "messages": messages, "max_tokens": max_tokens, "temperature": temperature},
             timeout=60
         )
-        
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
-        return None
     except Exception as e:
-        logger.error(f"AI Error: {e}")
+        logger.error(f"OpenRouter error: {e}")
+    return None
+
+def call_ai(prompt: str, max_tokens: int = 800, temperature: float = 0.7, 
+            system_prompt: str = None, conversation_history: List = None) -> Optional[str]:
+    if not ACTIVE_AI_KEY:
         return None
+    if is_gemini_key(ACTIVE_AI_KEY):
+        return call_gemini(prompt, max_tokens, temperature, system_prompt, conversation_history)
+    else:
+        return call_openrouter(prompt, max_tokens, temperature, system_prompt, conversation_history)
 
 def call_ai_analysis(question: str, analysis_data: Dict, conversation_history: List = None) -> Optional[str]:
-    if not OPENROUTER_API_KEY:
+    if not ACTIVE_AI_KEY:
         return None
-    
+        
     risk = analysis_data.get('risk_assessment', {})
     clauses = analysis_data.get('clause_analysis', {})
     fin = analysis_data.get('financial_analysis', {})
-    compliance = analysis_data.get('compliance', {})
     
-    system_prompt = f"""You are EDIE, a contract analysis expert. Explain THIS specific contract:
+    system_prompt = f"""You are EDIE, an elite enterprise contract analysis expert. Explain THIS specific contract:
 
 RISK SCORE: {risk.get('score', 0)}/100 ({risk.get('level', 'Unknown')})
 CONTRACT TYPE: {analysis_data.get('contract_type', 'General')}
@@ -117,28 +162,12 @@ PRESENT CLAUSES: {', '.join(clauses.get('present_list', [])[:5])}
 RECOMMENDATIONS: {', '.join(analysis_data.get('recommendations', [])[:5])}
 ROI: {fin.get('roi_percentage', 0)}%
 
-Answer questions conversationally about THIS specific contract analysis. Be helpful and specific."""
+Answer questions conversationally and accurately about THIS specific contract analysis. Be helpful, concise and specific."""
 
-    try:
-        messages = [{"role": "system", "content": system_prompt}]
-        if conversation_history:
-            for msg in conversation_history[-10:]:
-                messages.append(msg)
-        messages.append({"role": "user", "content": question})
-        
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-            json={"model": "google/gemma-2-9b-it:free", "messages": messages, "max_tokens": 600, "temperature": 0.7},
-            timeout=60
-        )
-        
-        if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
-        return None
-    except Exception as e:
-        logger.error(f"AI Analysis Error: {e}")
-        return None
+    if is_gemini_key(ACTIVE_AI_KEY):
+        return call_gemini(question, 600, 0.7, system_prompt, conversation_history)
+    else:
+        return call_openrouter(question, 600, 0.7, system_prompt, conversation_history)
 
 # ============================================
 # KNOWLEDGE BASE LOADER
@@ -686,7 +715,13 @@ analysis_sessions = {}
 
 @app.get("/")
 async def root():
-    return {"name": "EDIE Enterprise", "status": "running", "ai_available": AI_AVAILABLE and bool(OPENROUTER_API_KEY)}
+    provider = "Google Gemini (gemini-3.6-flash)" if (ACTIVE_AI_KEY and is_gemini_key(ACTIVE_AI_KEY)) else ("OpenRouter (Gemma 2)" if ACTIVE_AI_KEY else "Local Knowledge Base")
+    return {
+        "name": "EDIE Enterprise",
+        "status": "running",
+        "ai_available": AI_AVAILABLE,
+        "ai_provider": provider
+    }
 
 @app.get("/frontend.html")
 @app.get("/ui")
@@ -718,7 +753,7 @@ async def analyze_contract_endpoint(req: dict):
     try:
         result = analyze_contract(req.get('contract_text', ''), req.get('contract_value', 10000000), req.get('term_years', 2), req.get('industry', 'default'))
         
-        if AI_AVAILABLE and OPENROUTER_API_KEY:
+        if AI_AVAILABLE and ACTIVE_AI_KEY:
             ai_prompt = f"Risk {result['risk_assessment']['score']}/100 ({result['risk_assessment']['level']}). This is a {result.get('contract_type', 'general')} contract. Brief friendly summary (2 sentences)."
             ai_explanation = call_ai(ai_prompt, max_tokens=150, temperature=0.5)
             if ai_explanation:
@@ -754,7 +789,7 @@ async def analyze_file(file: UploadFile = File(...), contract_value: float = For
         
         result = analyze_contract(text, contract_value, term_years, industry)
         
-        if AI_AVAILABLE and OPENROUTER_API_KEY:
+        if AI_AVAILABLE and ACTIVE_AI_KEY:
             ai_prompt = f"Risk {result['risk_assessment']['score']}/100 ({result['risk_assessment']['level']}). This is a {result.get('contract_type', 'general')} contract. Brief friendly summary."
             ai_explanation = call_ai(ai_prompt, max_tokens=150, temperature=0.5)
             if ai_explanation:
@@ -823,18 +858,26 @@ def get_rag_fallback_answer(question: str) -> str:
 
 @app.post("/set-api-key")
 async def set_api_key(api_key: str = Form(...)):
-    global OPENROUTER_API_KEY, AI_AVAILABLE
-    OPENROUTER_API_KEY = api_key.strip()
-    AI_AVAILABLE = bool(OPENROUTER_API_KEY)
+    global OPENROUTER_API_KEY, GEMINI_API_KEY, ACTIVE_AI_KEY, AI_AVAILABLE
+    key = api_key.strip()
+    if is_gemini_key(key):
+        GEMINI_API_KEY = key
+        OPENROUTER_API_KEY = key
+    else:
+        OPENROUTER_API_KEY = key
+        GEMINI_API_KEY = ""
+    ACTIVE_AI_KEY = key
+    AI_AVAILABLE = bool(ACTIVE_AI_KEY)
     
     # Save to .env for persistence
     try:
         with open(".env", "w", encoding="utf-8") as f:
-            f.write(f"OPENROUTER_API_KEY={OPENROUTER_API_KEY}\n")
+            f.write(f"GEMINI_API_KEY={GEMINI_API_KEY}\nOPENROUTER_API_KEY={OPENROUTER_API_KEY}\n")
     except Exception as e:
         logger.warning(f"Could not write .env: {e}")
         
-    return {"success": True, "ai_available": AI_AVAILABLE}
+    provider = "Google Gemini (gemini-3.6-flash)" if is_gemini_key(key) else "OpenRouter"
+    return {"success": True, "ai_available": AI_AVAILABLE, "provider": provider}
 
 @app.post("/ai/chat")
 async def ai_chat(question: str = Form(...), session_id: str = Form(None)):
@@ -844,7 +887,7 @@ async def ai_chat(question: str = Form(...), session_id: str = Form(None)):
         chat_sessions[session_id] = []
     
     answer = None
-    if OPENROUTER_API_KEY:
+    if ACTIVE_AI_KEY:
         answer = call_ai(question, max_tokens=600, temperature=0.7, conversation_history=chat_sessions[session_id])
     
     if not answer:
@@ -868,7 +911,7 @@ async def ai_ask_analysis(question: str = Form(...), analysis_data: str = Form(.
             analysis_sessions[session_id] = []
         
         answer = None
-        if OPENROUTER_API_KEY:
+        if ACTIVE_AI_KEY:
             answer = call_ai_analysis(question, data, analysis_sessions[session_id])
         
         if not answer:
